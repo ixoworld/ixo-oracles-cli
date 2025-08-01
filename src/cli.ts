@@ -2,6 +2,7 @@ import { cancel, intro, isCancel, log, outro, select, spinner } from '@clack/pro
 import process from 'node:process';
 import { CommandRegistry } from './commands';
 import { CreateEntityCommand } from './commands/create-entity-command';
+import { HelpCommand } from './commands/help.command';
 import { InitCommand } from './commands/init.command';
 import { LogoutCommand } from './commands/logout.commands';
 import { SignXLoginCommand } from './commands/signX.commands';
@@ -9,15 +10,35 @@ import { handleError } from './utils/errors';
 import { RuntimeConfig } from './utils/runtime-config';
 import { Wallet } from './utils/wallet';
 
-async function main(args: string[]) {
-  intro('IXO CLI');
-  log.warn('Keep your IXO Mobile App open while running the CLI; So u do not interrupt the signX session');
-  try {
-    const config = RuntimeConfig.getInstance();
-    const wallet = new Wallet();
-    // first login
+class CLIManager {
+  private registry: CommandRegistry;
+  private config: RuntimeConfig;
+  private wallet: Wallet;
 
-    if (!wallet.checkWalletExists()) {
+  constructor() {
+    this.registry = new CommandRegistry();
+    this.config = RuntimeConfig.getInstance();
+    this.wallet = new Wallet();
+  }
+
+  private registerCommands(): void {
+    this.registry.register(new InitCommand(this.config, this.wallet));
+    this.registry.register(new CreateEntityCommand(this.wallet, this.config));
+    this.registry.register(new LogoutCommand(this.wallet));
+    this.registry.register(new HelpCommand(this.registry));
+  }
+
+  private async showHelp(): Promise<void> {
+    this.registerCommands();
+    const helpCommand = new HelpCommand(this.registry);
+    const result = await helpCommand.execute();
+    if (result.success && result.data) {
+      console.log(result.data);
+    }
+  }
+
+  private async handleAuthentication(): Promise<void> {
+    if (!this.wallet.checkWalletExists()) {
       const login = await select({
         message: 'Login with SignX',
         options: [
@@ -33,7 +54,7 @@ async function main(args: string[]) {
 
       switch (String(login)) {
         case 'login':
-          const loginCommand = new SignXLoginCommand(wallet, config);
+          const loginCommand = new SignXLoginCommand(this.wallet, this.config);
           const result = await loginCommand.execute();
           if (result.success) {
             log.success('Login successful');
@@ -46,38 +67,17 @@ async function main(args: string[]) {
           throw new Error(`Unknown command: ${login}`);
       }
     }
+  }
 
-    const registry = new CommandRegistry();
-
-    const shouldRunInitCommand = args.includes('--init');
-
-    registry.register(new InitCommand(config, wallet));
-
-    registry.register(new CreateEntityCommand(wallet, config));
-    registry.register(new LogoutCommand(wallet));
-
-    const action = shouldRunInitCommand
-      ? 'init'
-      : await select({
-          message: `Welcome ${wallet.name}, what would you like to do?`,
-          options: [...registry.getCommandOptions()],
-          initialValue: 'init',
-        });
-
-    if (isCancel(action)) {
-      cancel('Operation cancelled.');
-      process.exit(0);
-    }
-
-    const s = spinner();
-
-    const commandName = String(action);
-    const command = registry.get(commandName);
+  private async executeCommand(commandName: string): Promise<void> {
+    const command = this.registry.get(commandName);
     if (!command) {
       throw new Error(`Unknown command: ${commandName}`);
     }
 
+    const s = spinner();
     s.start(`Executing ${command.name}...`);
+
     const result = await command.execute();
     s.stop(`${command.name} completed`);
 
@@ -89,16 +89,80 @@ async function main(args: string[]) {
     } else {
       log.error(`${command.name} failed: ${result.error}`);
     }
-  } catch (error) {
-    handleError(error);
   }
 
-  outro('Thanks for using IXO CLI!');
-  process.exit(0);
+  private async interactiveMode(): Promise<void> {
+    intro('IXO CLI');
+    log.warn('Keep your IXO Mobile App open while running the CLI; So u do not interrupt the signX session');
+
+    await this.handleAuthentication();
+    this.registerCommands();
+
+    const action = await select({
+      message: `Welcome ${this.wallet.name}, what would you like to do?`,
+      options: [...this.registry.getCommandOptions()],
+      initialValue: 'init',
+    });
+
+    if (isCancel(action)) {
+      cancel('Operation cancelled.');
+      process.exit(0);
+    }
+
+    await this.executeCommand(String(action));
+  }
+
+  private async argumentMode(args: string[]): Promise<void> {
+    const command = args[0];
+
+    if (!command) {
+      await this.interactiveMode();
+      return;
+    }
+
+    // Handle special flags
+    if (command === '--init') {
+      await this.handleAuthentication();
+      this.registerCommands();
+      await this.executeCommand('init');
+      return;
+    }
+
+    // Handle help
+    if (command === '--help' || command === '-h') {
+      await this.showHelp();
+      return;
+    }
+
+    // Handle direct command execution
+    await this.handleAuthentication();
+    this.registerCommands();
+    await this.executeCommand(command);
+  }
+
+  async run(args: string[]): Promise<void> {
+    try {
+      // Remove the first two args (node path and script path)
+      const userArgs = args.slice(2);
+
+      if (userArgs.length === 0) {
+        await this.interactiveMode();
+      } else {
+        await this.argumentMode(userArgs);
+      }
+    } catch (error) {
+      handleError(error);
+    }
+
+    outro('Thanks for using IXO CLI!');
+    process.exit(0);
+  }
 }
 
 // Handle uncaught errors
 process.on('uncaughtException', handleError);
 process.on('unhandledRejection', handleError);
 
-main(process.argv);
+// Start the CLI
+const cli = new CLIManager();
+cli.run(process.argv);

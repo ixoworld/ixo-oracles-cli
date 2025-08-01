@@ -79,6 +79,7 @@ Launches an interactive menu with the following options:
 
 - **create-entity** - Create an entity with oracle profile, linked resources, and metadata
 - **logout** - Clear your authentication session
+- **help** - Show help information and available commands
 
 ## Project Structure
 
