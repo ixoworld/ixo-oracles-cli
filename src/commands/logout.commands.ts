@@ -15,7 +15,7 @@ export class LogoutCommand implements Command {
       initialValue: false,
     });
     if (shouldClear) {
-      this.wallet.clearWallet();
+      await this.wallet.clearWallet();
       return {
         success: true,
         data: 'Logged out successfully',

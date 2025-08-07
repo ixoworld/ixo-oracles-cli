@@ -4,7 +4,6 @@ import { LinkedResource, Service } from '@ixo/impactxclient-sdk/types/codegen/ix
 import { NETWORK } from '@ixo/signx-sdk/types/types/transact';
 import { registerUserSimplified } from './account/simplifiedRegistration';
 import { checkRequiredString, RELAYER_NODE_DID } from './common';
-import { Room } from './matrix';
 import { publicUpload } from './matrix/upload-to-matrix';
 import { RuntimeConfig } from './runtime-config';
 import { Wallet } from './wallet';
@@ -431,8 +430,6 @@ export class CreateEntity {
     log.success('Entity created -- config files attached');
     const s = spinner();
     s.start('Creating Entity Matrix Room...');
-    const room = new Room(this.config, this.wallet);
-    const roomId = await room.sourceRoomAndJoin(did);
     s.stop('Room created -- room joined');
     log.warn('Please save the following information in a secure location as it is not stored:');
     log.info(`ORACLE ACCOUNT DETAILS`);

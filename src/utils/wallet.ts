@@ -1,15 +1,16 @@
 import { cosmos } from '@ixo/impactxclient-sdk';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { unlink } from 'fs/promises';
+import os from 'os';
 import path from 'path';
 import { SignXClient } from './signx/signx';
 import { WalletProps } from './signx/types';
 
 // Use hidden .wallet.json file in user's home directory
-// const WALLET_PATH = path.join(os.homedir(), '.wallet.json');
+const WALLET_PATH = path.join(os.homedir(), '.wallet.json');
 
 // for dev make it here
-const WALLET_PATH = path.join(__dirname, '.wallet.json');
+// const WALLET_PATH = path.join(__dirname, '.wallet.json');
 
 export class Wallet {
   public wallet: WalletProps | undefined;

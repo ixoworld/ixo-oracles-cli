@@ -1,6 +1,6 @@
 module.exports = {
   parser: '@typescript-eslint/parser',
-  extends: ['eslint:recommended', '@typescript-eslint/recommended'],
+  extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended'],
   plugins: ['@typescript-eslint'],
   env: {
     node: true,
@@ -9,6 +9,7 @@ module.exports = {
   parserOptions: {
     ecmaVersion: 2022,
     sourceType: 'module',
+    project: './tsconfig.json',
   },
   rules: {
     // Simple rules - not overly strict
@@ -20,6 +21,12 @@ module.exports = {
     'prefer-const': 'error',
     'no-var': 'error',
     'no-console': 'off', // Allow console for CLI
+
+    // Promise/async rules to catch unawaited promises
+    '@typescript-eslint/no-floating-promises': 'error',
+    '@typescript-eslint/no-misused-promises': 'error',
+    '@typescript-eslint/await-thenable': 'error',
+    '@typescript-eslint/require-await': 'warn',
   },
-  ignorePatterns: ['dist/', 'node_modules/'],
+  ignorePatterns: ['dist/', 'node_modules/', '.eslintrc.cjs'],
 };

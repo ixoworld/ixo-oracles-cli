@@ -177,8 +177,7 @@ export class InitCommand implements Command {
         p.log.error('Failed to create Oracle Entity and Matrix Account');
       }
 
-      createProjectEnvFile(this.config);
-      p.log.warning(`Environment file created at ${path.join(projectPath, '.env')}`);
+      await createProjectEnvFile(this.config);
       // Show success message with next steps
       p.log.success(
         `\n✅ IXO project created successfully!\n\n` +

@@ -11,7 +11,18 @@ export const createProjectEnvFile = async (config: RuntimeConfig) => {
     deviceName: config.getOrThrow('registerUserResult').matrixDeviceName,
   });
   const network = config.getOrThrow('network');
-  const envFile = path.join(config.getOrThrow('projectPath'), 'apps', 'app', '.env');
+  const projectPath = config.getOrThrow('projectPath');
+  const envFile = path.join(projectPath, 'apps', 'app', '.env');
+
+  console.log('Creating .env file at:', envFile);
+  console.log('Project path:', projectPath);
+
+  // Ensure the directory exists
+  const envDir = path.dirname(envFile);
+  if (!fs.existsSync(envDir)) {
+    console.log('Creating directory:', envDir);
+    fs.mkdirSync(envDir, { recursive: true });
+  }
   const envContent = `
 PORT=4000 
 ORACLE_NAME=${config.getValue('projectName')}
@@ -21,6 +32,7 @@ MATRIX_BASE_URL=${MatrixHomeServerUrl[network]}
 MATRIX_ORACLE_ADMIN_ACCESS_TOKEN=${freshMx.accessToken}
 MATRIX_ORACLE_ADMIN_PASSWORD=${config.getOrThrow('registerUserResult').matrixPassword}
 MATRIX_ORACLE_ADMIN_USER_ID=${config.getOrThrow('registerUserResult').matrixUserId}
+MATRIX_RECOVERY_PHRASE=${config.getOrThrow('registerUserResult').matrixRecoveryPhrase}
 
 # OPENAI
 OPENAI_API_KEY=
@@ -41,5 +53,11 @@ ORACLE_MNEMONIC=${config.getOrThrow('registerUserResult').mnemonic}
 MATRIX_VAULT_PIN=${config.getOrThrow('registerUserResult').pin}
 ENTITY_DID=${config.getOrThrow('entityDid')}
 `;
-  fs.writeFileSync(envFile, envContent);
+  try {
+    fs.writeFileSync(envFile, envContent);
+    console.log('✅ .env file created successfully at:', envFile);
+  } catch (error) {
+    console.error('❌ Failed to create .env file:', error);
+    throw error;
+  }
 };

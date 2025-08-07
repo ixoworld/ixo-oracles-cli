@@ -29,6 +29,23 @@ class CLIManager {
   }
 
   private async showHelp(): Promise<void> {
+    // add fake wallet to the config
+    this.wallet.setWallet({
+      address: '0x0000000000000000000000000000000000000000',
+      algo: 'secp',
+      did: 'did:ixo:entity:1a76366f16570483cea72b111b27fd78',
+      network: 'devnet',
+      name: 'My oracle',
+      pubKey:
+        '0x0400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
+      ledgered: false,
+      matrix: {
+        accessToken: '',
+        userId: '0x0000000000000000000000000000000000000000',
+        address: '',
+        roomId: '',
+      },
+    });
     this.registerCommands();
     const helpCommand = new HelpCommand(this.registry);
     const result = await helpCommand.execute();
