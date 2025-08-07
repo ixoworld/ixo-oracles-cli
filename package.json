@@ -1,6 +1,6 @@
 {
   "name": "ixo-oracles-cli",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "CLI tool for creating and managing IXO Oracle projects",
   "main": "dist/cli.js",
   "type": "module",
@@ -38,7 +38,8 @@
   "homepage": "https://github.com/ixoworld/ixo-oracles-cli#readme",
   "packageManager": "pnpm@10.11.0",
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
   },
   "files": [
     "dist",
@@ -79,6 +80,10 @@
   "pnpm": {
     "overrides": {
       "node-fetch": "^3.3.2"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "protobufjs"
+    ]
   }
 }
