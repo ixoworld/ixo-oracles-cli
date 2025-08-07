@@ -22,11 +22,18 @@ export const publicUpload = async ({
     accessToken: wallet?.matrix?.accessToken ?? '',
   });
 
-  const file = new File([JSON.stringify(data)], fileName + '.json', {
-    type: 'application/ld+json',
-  });
+  // Create a simple Buffer instead of using File - this works reliably with node-fetch
+  const fileContent = JSON.stringify(data);
+  const fileBuffer = Buffer.from(fileContent, 'utf8');
+  const fullFileName = fileName + '.json';
+  const contentType = 'application/ld+json';
 
-  const response = await matrixAPIClient.media.v1beta1.upload(file.name, file.type as UploadContentType, file);
+  // Pass the buffer directly - node-fetch can handle this reliably in all environments
+  const response = await matrixAPIClient.media.v1beta1.upload(
+    fullFileName,
+    contentType as UploadContentType,
+    fileBuffer
+  );
   const httpUrl = mxUtils.mxc.mxcUrlToHttp(
     MatrixHomeServerUrl[(config.getValue('network') as NETWORK) ?? 'devnet'], // homeServerUrl
     response.content_uri // the mxc url

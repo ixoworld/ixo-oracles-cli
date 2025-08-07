@@ -1,12 +1,13 @@
 {
   "name": "ixo-oracles-cli",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "CLI tool for creating and managing IXO Oracle projects",
   "main": "dist/cli.js",
   "type": "module",
   "bin": {
     "oracles-cli": "./dist/cli.js"
   },
+  "preferGlobal": true,
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
