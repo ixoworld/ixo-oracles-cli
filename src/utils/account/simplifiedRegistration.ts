@@ -237,7 +237,7 @@ export async function registerUserSimplified(
       matrixMnemonic: mxMnemonic, // Matrix mnemonic - also store securely!
       matrixPassword: mxPassword,
       matrixAccessToken: account.accessToken,
-      matrixRecoveryPhrase: mxMnemonic,
+      matrixRecoveryPhrase: mxPassphrase,
       pin: pin,
       matrixDeviceName: DEVICE_NAME,
     };
