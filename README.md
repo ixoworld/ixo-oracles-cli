@@ -30,6 +30,20 @@ Or with pnpm:
 pnpm add -g ixo-oracles-cli
 ```
 
+**Important for pnpm users:** After installation, you need to approve build scripts:
+
+```bash
+pnpm approve-builds -g
+```
+
+When prompted, select `protobufjs` and approve it:
+
+```
+✔ Choose which packages to build · protobufjs
+✔ The next packages will now be built: protobufjs.
+Do you approve? (y/N) · true
+```
+
 Or with yarn:
 
 ```bash
