@@ -220,4 +220,4 @@ For issues and questions:
 
 ## License
 
-ISC
+This project is licensed under the Apache License 2.0. See [License.txt](License.txt) for details.
