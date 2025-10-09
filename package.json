@@ -1,6 +1,6 @@
 {
   "name": "ixo-oracles-cli",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "CLI tool for creating and managing IXO Oracle projects",
   "main": "dist/cli.js",
   "type": "module",
