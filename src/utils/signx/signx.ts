@@ -70,7 +70,15 @@ export class SignXClient {
   async awaitLogin() {
     return new Promise<WalletProps>((resolve, reject) => {
       try {
-        this.signXClient.on(SIGN_X_LOGIN_SUCCESS, async (response: { data: WalletProps }) => {
+        this.signXClient.on(SIGN_X_LOGIN_SUCCESS, (response: { data: WalletProps }) => {
+          if (!response.data) {
+            reject(new Error('Login failed'));
+            return;
+          }
+          if (!response.data.matrix) {
+            reject(new Error('Matrix login failed'));
+            return;
+          }
           resolve(response.data); // Resolve the promise with the login success data
         });
 

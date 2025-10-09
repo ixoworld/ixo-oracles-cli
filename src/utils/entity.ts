@@ -2,7 +2,7 @@ import { isCancel, log, spinner, text } from '@clack/prompts';
 import { customMessages, ixo, utils } from '@ixo/impactxclient-sdk';
 import { LinkedResource, Service } from '@ixo/impactxclient-sdk/types/codegen/ixo/iid/v1beta1/types';
 import { NETWORK } from '@ixo/signx-sdk/types/types/transact';
-import { registerUserSimplified } from './account/simplifiedRegistration';
+import { registerUserSimplified, SimplifiedRegistrationResult } from './account/simplifiedRegistration';
 import { checkRequiredString, RELAYER_NODE_DID } from './common';
 import { publicUpload } from './matrix/upload-to-matrix';
 import { RuntimeConfig } from './runtime-config';
@@ -102,7 +102,28 @@ export class CreateEntity {
       endDate: utils.proto.toTimestamp(new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000)),
     }),
   };
+  public addLinkedAccounts({ oracleAccountAddress }: { oracleAccountAddress: string }) {
+    if (!this.wallet.signXClient || !this.wallet.wallet) {
+      throw new Error('SignX client or wallet not found');
+    }
+    const memoryEngineByNetwork = {
+      devnet: 'did:ixo:ixo17w9u5uk4qjyjgeyqfpnp92jwy58faey9vvp3ar',
+      testnet: 'did:ixo:ixo14vjrckltpngugp03tcasfgh5qakey9n3sgm6y2',
+      mainnet: 'did:ixo:ixo1d39eutxdc0e8mnp0fmzqjdy6aaf26s9hzrk33r',
+    }[this.config.getValue('network') as NETWORK];
 
+    const accounts = [memoryEngineByNetwork, `did:ixo:${oracleAccountAddress}`];
+    const linkedAccounts = accounts.map((account) =>
+      ixo.iid.v1beta1.LinkedEntity.fromPartial({
+        id: account,
+        type: 'agent',
+        relationship: 'admin',
+        service: 'matrix',
+      })
+    );
+
+    this.MsgCreateEntityParams.value.linkedEntity = linkedAccounts;
+  }
   private async createAuthZConfig({
     oracleAccountAddress,
     oracleName,
@@ -385,14 +406,6 @@ export class CreateEntity {
     if (!this.wallet.signXClient || !this.wallet.wallet) {
       throw new Error('SignX client not found');
     }
-    log.info('Sign this transaction to create the entity');
-    const tx = await this.wallet.signXClient.transact([msg], this.wallet.wallet);
-    this.wallet.signXClient.displayTransactionQRCode(JSON.stringify(tx));
-    await this.wallet.signXClient.pollNextTransaction();
-
-    // Wait for transaction completion
-    const response = await this.wallet.signXClient.awaitTransaction();
-    log.success('Entity created -- wait to attach the required config files');
 
     log.info('Creating Oracle Wallet and Matrix Account');
     const pin = await text({
@@ -419,6 +432,19 @@ export class CreateEntity {
       }
     );
 
+    this.addLinkedAccounts({
+      oracleAccountAddress: registerResult.address,
+    });
+
+    log.info('Sign this transaction to create the entity');
+    const tx = await this.wallet.signXClient.transact([msg], this.wallet.wallet);
+    this.wallet.signXClient.displayTransactionQRCode(JSON.stringify(tx));
+    await this.wallet.signXClient.pollNextTransaction();
+
+    // Wait for transaction completion
+    const response = await this.wallet.signXClient.awaitTransaction();
+    log.success('Entity created -- wait to attach the required config files');
+
     // upload resources
     const did = utils.common.getValueFromEvents(response as any, 'wasm', 'token_id');
     await this.createOracleConfigFiles({
@@ -428,16 +454,16 @@ export class CreateEntity {
       entityDid: did,
     });
     log.success('Entity created -- config files attached');
+
     const s = spinner();
     s.start('Creating Entity Matrix Room...');
     s.stop('Room created -- room joined');
     log.warn('Please save the following information in a secure location as it is not stored:');
     log.info(`ORACLE ACCOUNT DETAILS`);
-    log.info(`Oracle DID: ${registerResult.did}`);
-    log.info(`Oracle Account Address: ${registerResult.address}`);
-    log.info(`Oracle Account Mnemonic: ${registerResult.mnemonic}`);
-    log.info(`Matrix User ID: ${registerResult.matrixUserId}`);
-    log.info(`Matrix Password: ${registerResult.matrixPassword}`);
+
+    for (const key in registerResult) {
+      log.info(`${key}: ${registerResult[key as keyof SimplifiedRegistrationResult]}`);
+    }
     this.config.addValue('registerUserResult', registerResult);
     this.config.addValue('entityDid', did);
     return did;

@@ -2,6 +2,7 @@ import { cancel, intro, isCancel, log, outro, select, spinner } from '@clack/pro
 import process from 'node:process';
 import { CommandRegistry } from './commands';
 import { CreateEntityCommand } from './commands/create-entity-command';
+import { CreateUserCommand } from './commands/create-user-command';
 import { HelpCommand } from './commands/help.command';
 import { InitCommand } from './commands/init.command';
 import { LogoutCommand } from './commands/logout.commands';
@@ -24,6 +25,7 @@ class CLIManager {
   private registerCommands(): void {
     this.registry.register(new InitCommand(this.config, this.wallet));
     this.registry.register(new CreateEntityCommand(this.wallet, this.config));
+    this.registry.register(new CreateUserCommand(this.wallet, this.config));
     this.registry.register(new LogoutCommand(this.wallet));
     this.registry.register(new HelpCommand(this.registry));
   }
@@ -70,18 +72,22 @@ class CLIManager {
       }
 
       switch (String(login)) {
-        case 'login':
+        case 'login': {
           const loginCommand = new SignXLoginCommand(this.wallet, this.config);
           const result = await loginCommand.execute();
           if (result.success) {
             log.success('Login successful');
           }
-          break;
-        case 'exit':
+          return;
+        }
+        case 'exit': {
           cancel('Operation cancelled.');
           process.exit(0);
-        default:
+          return;
+        }
+        default: {
           throw new Error(`Unknown command: ${login}`);
+        }
       }
     }
   }
@@ -182,4 +188,4 @@ process.on('unhandledRejection', handleError);
 
 // Start the CLI
 const cli = new CLIManager();
-cli.run(process.argv);
+void cli.run(process.argv);
