@@ -6,6 +6,7 @@ import { checkRequiredNumber, checkRequiredString, checkRequiredURL, PORTAL_URL,
 import { CreateEntity } from '../utils/entity';
 import { RuntimeConfig } from '../utils/runtime-config';
 import { Wallet } from '../utils/wallet';
+
 export class CreateEntityCommand implements Command {
   name = 'create-entity';
   description = 'Create an entity';
@@ -124,6 +125,14 @@ export class CreateEntityCommand implements Command {
             ],
             initialValue: 'did:ixo:entity:1a76366f16570483cea72b111b27fd78',
           }),
+        apiUrl: () =>
+          p.text({
+            message: 'What is the API URL of the oracle?',
+            initialValue: 'http://localhost:4000',
+            validate(value) {
+              return checkRequiredURL(value, 'API URL is required or a valid URL');
+            },
+          }),
       },
       {
         // On Cancel callback that wraps the group
@@ -152,19 +161,19 @@ export class CreateEntityCommand implements Command {
       services: [
         {
           id: '{id}#api',
-          serviceEndpoint: 'http://localhost:4000',
+          serviceEndpoint: results.apiUrl,
           type: 'oracleService',
         },
         {
           id: '{id}#ws',
-          serviceEndpoint: 'http://localhost:4000',
+          serviceEndpoint: results.apiUrl,
           type: 'wsService',
         },
       ],
       parentProtocol: results.parentProtocol,
     });
 
-    p.log.info(`API for the oracle is: http://localhost:4000 | You can change this after you deploy the oracle`);
+    p.log.info(`API for the oracle is: ${results.apiUrl} | You can change this after you deploy the oracle`);
 
     // add to portal
     const portalBaseUrl = PORTAL_URL[(this.config.getValue('network') as NETWORK) ?? 'devnet'];
