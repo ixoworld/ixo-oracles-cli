@@ -1,8 +1,10 @@
+import { log } from '@clack/prompts';
 import { cosmos } from '@ixo/impactxclient-sdk';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { unlink } from 'fs/promises';
 import os from 'os';
 import path from 'path';
+import { RuntimeConfig } from './runtime-config';
 import { SignXClient } from './signx/signx';
 import { WalletProps } from './signx/types';
 
@@ -15,8 +17,9 @@ const WALLET_PATH = path.join(os.homedir(), '.wallet.json');
 export class Wallet {
   public wallet: WalletProps | undefined;
   public signXClient?: SignXClient;
-
-  constructor() {
+  private config: RuntimeConfig;
+  constructor(config: RuntimeConfig) {
+    this.config = config;
     this.loadWallet();
   }
 
@@ -29,26 +32,44 @@ export class Wallet {
       try {
         const walletData = readFileSync(WALLET_PATH, 'utf8');
         this.wallet = JSON.parse(walletData) as WalletProps;
+
+        // get network from matrix
+        // userid @did-ixo-ixo15a7p9d4n8wjh6wcsqk53g4yk7u3ztqpuymznxn:devmx.ixo.earth
+        const mxDomain = this.wallet.matrix.userId?.split(':')[1];
+        const mxDomainToNetwork = {
+          'devmx.ixo.earth': 'devnet',
+          'testmx.ixo.earth': 'testnet',
+          'mx.ixo.earth': 'mainnet',
+        } as const;
+        const network = mxDomainToNetwork[mxDomain as keyof typeof mxDomainToNetwork];
+        if (!network) {
+          throw new Error('Invalid matrix domain');
+        }
+        this.wallet.network = network;
+        this.config.addValue('network', network);
+
         // set signx client
-        this.setSignXClient(new SignXClient(this.wallet.network ?? 'devnet'));
-        console.log('Wallet loaded successfully');
+        this.setSignXClient(new SignXClient(network));
+        log.success(`Welcome back, ${this.wallet.name}!`);
+        log.info(`Network: ${network}`);
       } catch (error) {
-        console.warn('Failed to load wallet file:', error);
+        log.warning(`Failed to load wallet file: ${error instanceof Error ? error.message : String(error)}`);
         this.wallet = undefined;
       }
     } else {
-      console.log('No wallet file found');
+      log.warning('No wallet file found');
     }
   }
 
   setWallet(wallet: WalletProps) {
     try {
       this.wallet = wallet;
+
       const walletJson = JSON.stringify(wallet, null, 2);
       writeFileSync(WALLET_PATH, walletJson, 'utf8');
-      console.log('Wallet saved successfully to:', WALLET_PATH);
+      log.success(`Wallet saved successfully to: ${WALLET_PATH}`);
     } catch (error) {
-      console.error('Failed to save wallet:', error);
+      log.error(`Failed to save wallet: ${error instanceof Error ? error.message : String(error)}`);
       throw new Error('Failed to save wallet file');
     }
   }
@@ -62,10 +83,10 @@ export class Wallet {
     try {
       if (existsSync(WALLET_PATH)) {
         await unlink(WALLET_PATH);
-        console.log('Wallet file deleted successfully');
+        log.success('Wallet file deleted successfully');
       }
     } catch (error) {
-      console.error('Failed to delete wallet file:', error);
+      log.error(`Failed to delete wallet file: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

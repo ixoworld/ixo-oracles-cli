@@ -3,31 +3,10 @@ import { customMessages, ixo, utils } from '@ixo/impactxclient-sdk';
 import { LinkedResource, Service } from '@ixo/impactxclient-sdk/types/codegen/ixo/iid/v1beta1/types';
 import { NETWORK } from '@ixo/signx-sdk/types/types/transact';
 import { registerUserSimplified, SimplifiedRegistrationResult } from './account/simplifiedRegistration';
-import { checkRequiredString, RELAYER_NODE_DID } from './common';
+import { checkRequiredString, DOMAIN_INDEXER_URL, RELAYER_NODE_DID } from './common';
 import { publicUpload } from './matrix/upload-to-matrix';
 import { RuntimeConfig } from './runtime-config';
 import { Wallet } from './wallet';
-
-interface BlockNoteBlock {
-  id: string;
-  type: string;
-  props: {
-    textColor: string;
-    backgroundColor: string;
-    textAlignment: string;
-    level?: number;
-  };
-  content: Array<{
-    type: string;
-    text: string;
-    styles: Record<string, any>;
-  }>;
-  children?: any[];
-}
-interface BlockNotePage {
-  title: string;
-  blocks: BlockNoteBlock[] | null;
-}
 
 interface CreateEntityParams {
   profile: {
@@ -38,10 +17,6 @@ interface CreateEntityParams {
     location: string;
     description: string;
   };
-  page: {
-    title: string;
-    content: string;
-  };
   services: Service[];
   parentProtocol: string;
   oracleConfig: {
@@ -49,6 +24,7 @@ interface CreateEntityParams {
     price: number;
   };
 }
+type Denom = 'uixo' | 'ibc/6BBE9BD4246F8E04948D5A4EEE7164B2630263B9EBB5E7DC5F0A46C62A2FF97B';
 
 export class CreateEntity {
   private readonly wallet: Wallet;
@@ -176,11 +152,20 @@ export class CreateEntity {
   /**
    * Create Fees Config
    * @param entityDid
-   * @param price
+   * @param price -- in credits
+   * @param denom -- the denom of the price
    *
    * The fees config is used to set the pricing for the oracle -- this config is fetched by the Frontend and any client to use the pricing for the oracle and grant max amount permissions
    */
-  private async createFeesConfig({ entityDid, price }: { entityDid: string; price: number }): Promise<LinkedResource> {
+  private async createFeesConfig({
+    entityDid,
+    price,
+    denom,
+  }: {
+    entityDid: string;
+    price: number;
+    denom: Denom;
+  }): Promise<LinkedResource> {
     const config = {
       '@context': [
         'https://schema.org',
@@ -199,11 +184,11 @@ export class CreateEntity {
       serviceType: '',
       offers: {
         '@type': 'Offer',
-        priceCurrency: 'uixo',
+        priceCurrency: denom,
         priceSpecification: {
           '@type': 'PaymentChargeSpecification',
-          priceCurrency: 'uixo',
-          price: price,
+          priceCurrency: denom,
+          price: price * 1000, // 1 credit is 1000 uixo
           unitCode: 'MON',
           billingIncrement: 1,
           billingPeriod: 'P1M',
@@ -245,6 +230,35 @@ export class CreateEntity {
    * Using this after the entity is created to upload the config files to the entity using it's did
    * this will do entity update to add the config files to the entity
    */
+  /**
+   * Add a controller to an existing entity
+   * @param entityDid - The DID of the entity to update
+   * @param controllerDid - The DID of the controller to add
+   */
+  public async addControllerToEntity(entityDid: string, controllerDid: string): Promise<void> {
+    const walletAddress = this.wallet.wallet?.address;
+
+    if (!this.wallet.signXClient || !this.wallet.wallet || !walletAddress) {
+      throw new Error('SignX client or wallet not found');
+    }
+
+    const addControllerMsg = {
+      typeUrl: '/ixo.iid.v1beta1.MsgAddController',
+      value: ixo.iid.v1beta1.MsgAddController.fromPartial({
+        id: entityDid,
+        controllerDid: controllerDid,
+        signer: walletAddress,
+      }),
+    };
+
+    log.info(`Sign to add controller ${controllerDid} to entity ${entityDid}`);
+    const tx = await this.wallet.signXClient.transact([addControllerMsg], this.wallet.wallet);
+    this.wallet.signXClient.displayTransactionQRCode(JSON.stringify(tx));
+    await this.wallet.signXClient.pollNextTransaction();
+    await this.wallet.signXClient.awaitTransaction();
+    log.success(`Controller ${controllerDid} added to entity ${entityDid}`);
+  }
+
   private async createOracleConfigFiles({
     oracleName,
     entityDid,
@@ -266,6 +280,10 @@ export class CreateEntity {
       this.createFeesConfig({
         entityDid,
         price,
+        denom:
+          this.config.getValue('network') === 'devnet'
+            ? 'uixo'
+            : 'ibc/6BBE9BD4246F8E04948D5A4EEE7164B2630263B9EBB5E7DC5F0A46C62A2FF97B',
       }),
     ]);
     const linkedResourcesMsgs = resources.map((resource) => ({
@@ -294,47 +312,87 @@ export class CreateEntity {
     return response;
   }
 
-  private async addPage({ content, title }: CreateEntityParams['page']) {
-    const blockNotePage: BlockNotePage = {
-      title,
-      blocks: [
+  private async createDomainCard({
+    profile,
+    entityDid,
+  }: {
+    profile: CreateEntityParams['profile'];
+    entityDid: string;
+  }): Promise<LinkedResource> {
+    const validFrom = new Date().toISOString();
+
+    const domainCard = {
+      '@context': [
+        'https://www.w3.org/ns/credentials/v2',
+        'https://w3id.org/ixo/context/v1',
         {
-          id: 'title-block',
-          type: 'heading',
-          props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
-          content: [{ type: 'text', text: title, styles: {} }],
-        },
-        {
-          id: 'content-block',
-          type: 'paragraph',
-          props: {
-            textColor: 'default',
-            backgroundColor: 'default',
-            textAlignment: 'left',
+          schema: 'https://schema.org/',
+          ixo: 'https://w3id.org/ixo/vocab/v1',
+          prov: 'http://www.w3.org/ns/prov#',
+          proj: 'https://linked.data.gov.au/def/project#',
+          xsd: 'http://www.w3.org/2001/XMLSchema#',
+          id: '@id',
+          type: '@type',
+          'ixo:vector': {
+            '@container': '@list',
+            '@type': 'xsd:double',
           },
-          content: [{ type: 'text', text: content, styles: {} }],
+          '@protected': true,
         },
       ],
+      id: `${entityDid}#dmn`,
+      type: ['VerifiableCredential', 'ixo:DomainCard'],
+      issuer: {
+        id: this.wallet.did,
+      },
+      validFrom: validFrom,
+      credentialSchema: {
+        id: 'https://github.com/ixoworld/domainCards/schemas/ixo-domain-card-1.json',
+        type: 'JsonSchema',
+      },
+      credentialSubject: {
+        id: entityDid,
+        type: ['ixo:dao'],
+        additionalType: ['schema:Organization'],
+        name: profile.name,
+        alternateName: profile.orgName !== profile.name ? [profile.orgName] : undefined,
+        description: profile.description,
+        logo: {
+          type: 'schema:ImageObject',
+          id: profile.logo,
+          contentUrl: profile.logo,
+        },
+        image: [
+          {
+            type: 'schema:ImageObject',
+            id: profile.coverImage,
+            contentUrl: profile.coverImage,
+          },
+        ],
+        address: {
+          type: 'schema:PostalAddress',
+          addressLocality: profile.location,
+        },
+      },
     };
 
     const response = await publicUpload({
-      data: blockNotePage,
-      fileName: 'page',
+      data: domainCard,
+      fileName: 'domainCard',
       config: this.config,
       wallet: this.wallet,
     });
 
-    const pageResource = {
-      id: '{id}#pag',
-      type: 'Settings',
-      description: 'Page',
-      mediaType: 'application/json',
-      serviceEndpoint: response.serviceEndpoint,
+    return ixo.iid.v1beta1.LinkedResource.fromPartial({
+      id: '{id}#dmn',
+      type: 'domainCard',
       proof: response.proof,
-      encrypted: 'false',
       right: '',
-    };
-    this.MsgCreateEntityParams.value.linkedResource.push(ixo.iid.v1beta1.LinkedResource.fromPartial(pageResource));
+      encrypted: 'false',
+      mediaType: 'application/json',
+      description: 'Domain Card',
+      serviceEndpoint: response.serviceEndpoint,
+    });
   }
 
   private async addProfile({ orgName, name, logo, coverImage, location, description }: CreateEntityParams['profile']) {
@@ -376,13 +434,13 @@ export class CreateEntity {
     this.MsgCreateEntityParams.value.linkedResource.push(ixo.iid.v1beta1.LinkedResource.fromPartial(profileResource));
   }
 
-  private async addServices(services: Service[]) {
+  private addServices(services: Service[]) {
     this.MsgCreateEntityParams.value.service.push(
       ...services.map((service) => ixo.iid.v1beta1.Service.fromPartial(service))
     );
   }
 
-  private async setParentProtocol(parentProtocol: string) {
+  private setParentProtocol(parentProtocol: string) {
     this.MsgCreateEntityParams.value.context.push(
       ...customMessages.iid.createAgentIidContext([{ key: 'class', val: parentProtocol }])
     );
@@ -392,15 +450,41 @@ export class CreateEntity {
     return this.MsgCreateEntityParams;
   }
 
+  private async submitToDomainIndexer(entityDid: string): Promise<void> {
+    const network = (this.config.getValue('network') as NETWORK) ?? 'devnet';
+    const indexerUrl = DOMAIN_INDEXER_URL[network];
+
+    try {
+      const response = await fetch(indexerUrl, {
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          did: entityDid,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        log.warn(`Failed to submit to domain indexer: ${response.status} ${errorText}`);
+        return;
+      }
+
+      log.success('Domain card submitted to domain indexer');
+    } catch (error) {
+      log.warn(`Error submitting to domain indexer: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
   public async execute(params: CreateEntityParams): Promise<string> {
-    log.info('Adding page');
-    await this.addPage(params.page);
     log.info('Adding profile');
     await this.addProfile(params.profile);
     log.info('Adding services');
-    await this.addServices(params.services);
+    this.addServices(params.services);
     log.info('Adding parent protocol');
-    await this.setParentProtocol(params.parentProtocol);
+    this.setParentProtocol(params.parentProtocol);
 
     const msg = this.returnExecutableMsg();
     if (!this.wallet.signXClient || !this.wallet.wallet) {
@@ -446,7 +530,42 @@ export class CreateEntity {
     log.success('Entity created -- wait to attach the required config files');
 
     // upload resources
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const did = utils.common.getValueFromEvents(response as any, 'wasm', 'token_id');
+
+    // Create domain card
+    log.info('Creating domain card');
+    const domainCardResource = await this.createDomainCard({
+      profile: params.profile,
+      entityDid: did,
+    });
+
+    // Add domain card to entity
+    if (this.wallet.wallet?.address) {
+      const addDomainCardMsg = {
+        typeUrl: '/ixo.iid.v1beta1.MsgAddLinkedResource',
+        value: ixo.iid.v1beta1.MsgAddLinkedResource.fromPartial({
+          id: did,
+          linkedResource: ixo.iid.v1beta1.LinkedResource.fromPartial({
+            id: domainCardResource.id,
+            description: domainCardResource.description,
+            type: domainCardResource.type,
+            proof: domainCardResource.proof,
+            mediaType: domainCardResource.mediaType,
+            encrypted: domainCardResource.encrypted,
+            serviceEndpoint: domainCardResource.serviceEndpoint,
+          }),
+          signer: this.wallet.wallet.address,
+        }),
+      };
+      log.info('Sign to add domain card to the entity');
+      const domainCardTx = await this.wallet.signXClient.transact([addDomainCardMsg], this.wallet.wallet);
+      this.wallet.signXClient.displayTransactionQRCode(JSON.stringify(domainCardTx));
+      await this.wallet.signXClient.pollNextTransaction();
+      await this.wallet.signXClient.awaitTransaction();
+      log.success('Domain card added to entity');
+    }
+
     await this.createOracleConfigFiles({
       oracleName: params.oracleConfig.oracleName,
       price: params.oracleConfig.price,
@@ -466,6 +585,11 @@ export class CreateEntity {
     }
     this.config.addValue('registerUserResult', registerResult);
     this.config.addValue('entityDid', did);
+
+    // Submit to domain indexer
+    log.info('Submitting domain card to domain indexer');
+    await this.submitToDomainIndexer(did);
+
     return did;
   }
 }

@@ -39,25 +39,6 @@ export class CreateEntityCommand implements Command {
               return checkRequiredNumber(parseInt(value), 'Oracle price is required and must be a number');
             },
           }),
-        page: () =>
-          p.group({
-            title: () =>
-              p.text({
-                message: 'What is the title of the oracle entity page?',
-                initialValue: 'AI Agent Oracle',
-                validate(value) {
-                  return checkRequiredString(value, 'Title is required');
-                },
-              }),
-            content: () =>
-              p.text({
-                message: 'What is the content of the oracle entity page?',
-                initialValue: '### Oracle built to help u with daily tasks',
-                validate(value) {
-                  return checkRequiredString(value, 'Content is required');
-                },
-              }),
-          }),
         profile: () =>
           p.group({
             orgName: () =>
@@ -149,7 +130,6 @@ export class CreateEntityCommand implements Command {
         oracleName: results.oracleName,
         price: parseInt(results.oraclePrice),
       },
-      page: results.page,
       profile: {
         orgName: results.profile.orgName,
         name: results.profile.name,

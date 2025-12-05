@@ -7,6 +7,7 @@ import { HelpCommand } from './commands/help.command';
 import { InitCommand } from './commands/init.command';
 import { LogoutCommand } from './commands/logout.commands';
 import { SignXLoginCommand } from './commands/signX.commands';
+import { UpdateEntityCommand } from './commands/update-entity-command';
 import { handleError } from './utils/errors';
 import { RuntimeConfig } from './utils/runtime-config';
 import { Wallet } from './utils/wallet';
@@ -19,12 +20,13 @@ class CLIManager {
   constructor() {
     this.registry = new CommandRegistry();
     this.config = RuntimeConfig.getInstance();
-    this.wallet = new Wallet();
+    this.wallet = new Wallet(this.config);
   }
 
   private registerCommands(): void {
     this.registry.register(new InitCommand(this.config, this.wallet));
     this.registry.register(new CreateEntityCommand(this.wallet, this.config));
+    this.registry.register(new UpdateEntityCommand(this.wallet, this.config));
     this.registry.register(new CreateUserCommand(this.wallet, this.config));
     this.registry.register(new LogoutCommand(this.wallet));
     this.registry.register(new HelpCommand(this.registry));

@@ -55,8 +55,23 @@ export const CHAIN_RPC = {
   devnet: 'https://devnet.ixo.earth/rpc/',
 };
 
+export const DOMAIN_INDEXER_URL: Record<NETWORK, string> = {
+  devnet: 'https://domain-indexer.devnet.ixo.earth/index',
+  testnet: 'https://domain-indexer.testnet.ixo.earth/index',
+  mainnet: 'https://domain-indexer.ixo.earth/index',
+};
+
 export const checkRequiredString = (value: string, message = 'This  field is required') => {
   const schema = z.string().min(1, message);
+  const result = schema.safeParse(value);
+  if (!result.success) {
+    return result.error.message;
+  }
+  return undefined;
+};
+
+export const checkIsEntityDid = (value: string) => {
+  const schema = z.string().regex(/^did:ixo:entity:[a-f0-9]{64}$/, 'Invalid entity DID');
   const result = schema.safeParse(value);
   if (!result.success) {
     return result.error.message;

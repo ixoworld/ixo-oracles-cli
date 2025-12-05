@@ -45,6 +45,6 @@ export function handleError(error: unknown): never {
     process.exit(1);
   }
 
-  console.error('\n❌ Unknown error occurred');
+  console.error('\n❌ Unknown error occurred' , error);
   process.exit(1);
 }
