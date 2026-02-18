@@ -1,6 +1,7 @@
 import { Bip39, EnglishMnemonic, Secp256k1, sha256, Slip10, Slip10Curve, stringToPath } from '@cosmjs/crypto';
 import { AccountData, DirectSecp256k1HdWallet, OfflineSigner } from '@cosmjs/proto-signing';
 import { createQueryClient, createSigningClient, customMessages, ixo, utils } from '@ixo/impactxclient-sdk';
+import { Service } from '@ixo/impactxclient-sdk/types/codegen/ixo/iid/v1beta1/types';
 import { NETWORK } from '@ixo/signx-sdk/types/types/transact';
 import { createCipheriv, randomBytes } from 'crypto';
 import { CHAIN_RPC } from '../common';
@@ -46,7 +47,12 @@ export async function checkIidDocumentExists(did: string, network: NETWORK) {
  * @param did - The did to create iid document for
  * @param offlineSigner - The offline signer to use to create iid document
  */
-export async function createIidDocument(did: string, network: NETWORK, offlineSigner: OfflineSigner) {
+export async function createIidDocument(
+  did: string,
+  network: NETWORK,
+  offlineSigner: OfflineSigner,
+  services?: Service[]
+) {
   try {
     const accounts = await offlineSigner.getAccounts();
     const { address, pubkey } = (accounts[0] ?? {}) as AccountData;
@@ -72,6 +78,7 @@ export async function createIidDocument(did: string, network: NETWORK, offlineSi
         }),
         signer: address,
         controllers: [did],
+        ...(services?.length ? { services: services } : {}),
       }),
     };
     // if (!feegrantGranter) {

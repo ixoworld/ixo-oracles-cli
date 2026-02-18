@@ -6,8 +6,6 @@ import md5 from 'md5';
 
 // import cons from '@constants/matrix';
 // import { isAuthenticated, secret } from '@utils/secrets';
-import { NETWORK } from '@ixo/signx-sdk/types/types/transact';
-import { MatrixHomeServerUrl, MatrixRoomBotServerUrl } from '../common';
 import { cacheSecretStorageKey, clearSecretStorageKeys, getSecretStorageKey } from './secretStorageKeys';
 import { delay } from './utils';
 
@@ -107,8 +105,8 @@ interface UserCreationResponse {
  * Fetch the public key for password encryption from the user creation API
  * @returns Public key information for encryption
  */
-export async function getPublicKeyForEncryption(network: NETWORK): Promise<PublicKeyResponse> {
-  const response = await fetch(`${MatrixRoomBotServerUrl[network]}/public-key`, {
+export async function getPublicKeyForEncryption(roomBotUrl: string): Promise<PublicKeyResponse> {
+  const response = await fetch(`${roomBotUrl}/public-key`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -158,45 +156,6 @@ export function encryptPasswordWithECIES(password: string, publicKey: string): s
 }
 
 /**
- * Create user account using WebAuthn/Passkey authentication
- * @param address The user's address
- * @param password The matrix password
- * @param authnResult The WebAuthn assertion result
- * @returns The user creation response
- */
-export async function createUserAccountWithPasskey(
-  address: string,
-  password: string,
-  authnResult: any,
-  network: NETWORK
-): Promise<UserCreationResponse> {
-  const publicKeyInfo = await getPublicKeyForEncryption(network);
-  const encryptedPassword = encryptPasswordWithECIES(password, publicKeyInfo.publicKey);
-
-  const request: UserCreationRequest = {
-    address,
-    encryptedPassword,
-    publicKeyFingerprint: publicKeyInfo.fingerprint,
-    authnResult,
-  };
-
-  const response = await fetch(`${MatrixRoomBotServerUrl[network]}/user/create`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(request),
-  });
-
-  if (!response.ok) {
-    const errorData = (await response.json()) as { error: string };
-    throw new Error(errorData.error || 'Failed to create user account');
-  }
-
-  return (await response.json()) as UserCreationResponse;
-}
-
-/**
  * Create user account using secp256k1 signature authentication
  * @param address The user's address
  * @param password The matrix password
@@ -209,9 +168,10 @@ export async function createUserAccountWithSecp(
   password: string,
   signature: string,
   challenge: string,
-  network: NETWORK
+  homeServerUrl: string,
+  roomBotUrl: string
 ): Promise<UserCreationResponse> {
-  const publicKeyInfo = await getPublicKeyForEncryption(network);
+  const publicKeyInfo = await getPublicKeyForEncryption(roomBotUrl);
   const encryptedPassword = encryptPasswordWithECIES(password, publicKeyInfo.publicKey);
 
   const request: UserCreationRequest = {
@@ -224,7 +184,7 @@ export async function createUserAccountWithSecp(
     },
   };
 
-  const response = await fetch(`${MatrixRoomBotServerUrl[network]}/user/create`, {
+  const response = await fetch(`${roomBotUrl}/user/create`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -233,8 +193,16 @@ export async function createUserAccountWithSecp(
   });
 
   if (!response.ok) {
-    const errorData = (await response.json()) as { error: string };
-    throw new Error(errorData.error || 'Failed to create user account');
+    const responseText = await response.text();
+    let errorMessage = `Failed to create user account (HTTP ${response.status})`;
+    try {
+      const errorData = JSON.parse(responseText);
+      errorMessage = errorData.error || errorData.message || errorData.detail || responseText;
+    } catch {
+      errorMessage = responseText || errorMessage;
+    }
+    console.error(`Room bot error [${response.status}]: ${responseText}`);
+    throw new Error(errorMessage);
   }
 
   return (await response.json()) as UserCreationResponse;
@@ -245,49 +213,13 @@ export async function createUserAccountWithSecp(
 // =================================================================================================
 
 /**
- * Register matrix account using the new API with WebAuthn/Passkey authentication
- * @param address The user's address
- * @param password The matrix password
- * @param authnResult The WebAuthn assertion result
- * @returns AuthResponse with access token and user details
- */
-export async function mxRegisterWithPasskey(
-  address: string,
-  password: string,
-  authnResult: any,
-  deviceName: string,
-  network: NETWORK
-): Promise<AuthResponse> {
-  try {
-    const userCreationResult = await createUserAccountWithPasskey(address, password, authnResult, network);
-
-    if (!userCreationResult.success) {
-      throw new Error('Failed to create matrix account via API');
-    }
-
-    // Now login to get the access token
-    const homeServerUrl = MatrixHomeServerUrl[network];
-    const username = generateUsernameFromAddress(address);
-
-    const loginResult = await mxLogin({
-      homeServerUrl,
-      username,
-      password,
-      deviceName,
-    });
-
-    return loginResult;
-  } catch (error) {
-    console.error('mxRegisterWithPasskey error:', error);
-    throw error;
-  }
-}
-
-/**
  * Register matrix account using the new API with secp256k1 signature authentication
  * @param address The user's address
  * @param password The matrix password
+ * @param deviceName The device name for the Matrix session
  * @param wallet The secp wallet for signing
+ * @param homeServerUrl The Matrix homeserver URL
+ * @param roomBotUrl The room bot URL
  * @returns AuthResponse with access token and user details
  */
 export async function mxRegisterWithSecp(
@@ -295,7 +227,8 @@ export async function mxRegisterWithSecp(
   password: string,
   deviceName: string,
   wallet: { sign: (message: string) => Promise<Uint8Array> },
-  network: NETWORK
+  homeServerUrl: string,
+  roomBotUrl: string
 ): Promise<AuthResponse> {
   try {
     // Create challenge and sign it
@@ -303,14 +236,19 @@ export async function mxRegisterWithSecp(
     const signatureBytes = await wallet.sign(challengeBase64);
     const signature = Buffer.from(signatureBytes).toString('base64');
 
-    const userCreationResult = await createUserAccountWithSecp(address, password, signature, challengeBase64, network);
+    const userCreationResult = await createUserAccountWithSecp(
+      address,
+      password,
+      signature,
+      challengeBase64,
+      homeServerUrl,
+      roomBotUrl
+    );
 
     if (!userCreationResult.success) {
       throw new Error('Failed to create matrix account via API');
     }
 
-    // Now login to get the access token
-    const homeServerUrl = MatrixHomeServerUrl[network];
     const username = generateUsernameFromAddress(address);
 
     const loginResult = await mxLogin({
@@ -325,74 +263,6 @@ export async function mxRegisterWithSecp(
     console.error('mxRegisterWithSecp error:', error);
     throw error;
   }
-}
-
-// =================================================================================================
-// UPDATED LEGACY REGISTRATION (DEPRECATED)
-// =================================================================================================
-
-// Keep the old functions for backward compatibility but mark as deprecated
-async function getRegisterFlow(homeServerUrl: string) {
-  try {
-    const client = createTemporaryClient(homeServerUrl);
-    // @ts-ignore
-    const [registerResponse] = await Promise.allSettled([client.register()]);
-    const registerFlow = registerResponse.status === 'rejected' ? registerResponse?.reason?.data : undefined;
-    console.log('registerFlow', registerFlow);
-    if (registerFlow === undefined) {
-      throw new Error('Failed to setup home server config.');
-    }
-    return registerFlow;
-  } catch (error) {
-    if ((error as any).data) {
-      console.log('registerFlow', (error as any).data);
-      return (error as any).data;
-    }
-    throw new Error('Failed to get matrix register flow.');
-  }
-}
-
-export async function loginOrRegisterMatrixAccount({
-  homeServerUrl,
-  username,
-  password,
-  wallet,
-  accessToken,
-  deviceName,
-  network,
-}: {
-  homeServerUrl: string;
-  username: string;
-  password: string;
-  accessToken?: string;
-  wallet?: { sign: (message: string) => Promise<Uint8Array>; baseAccount: { address: string } };
-  deviceName: string;
-  network: NETWORK;
-}) {
-  const isAuthenticated = !!accessToken;
-  let isUsernameAvailable = await checkIsUsernameAvailable({ homeServerUrl, username });
-  let res: AuthResponse | undefined;
-  if (isUsernameAvailable && wallet) {
-    // Use new API-based registration with secp256k1 authentication
-    res = await mxRegisterWithSecp(wallet.baseAccount.address, password, deviceName, wallet, network);
-    if (!res?.accessToken) {
-      throw new Error('Failed to register matrix account');
-    }
-    console.log('mxRegisterWithSecp', res);
-  }
-  if (!isAuthenticated) {
-    res = await mxLogin({
-      homeServerUrl,
-      username,
-      password,
-      deviceName,
-    });
-    if (!res?.accessToken) {
-      throw new Error('Failed to login to matrix account');
-    }
-    console.log('mxLogin', res);
-  }
-  return res;
 }
 
 export async function checkIsUsernameAvailable({

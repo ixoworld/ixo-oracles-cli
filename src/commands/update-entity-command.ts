@@ -29,7 +29,7 @@ export class UpdateEntityCommand implements Command {
             message: 'What is the DID of the entity you want to update?',
             initialValue: this.config.getValue('entityDid')?.toString() ?? '',
             validate(value) {
-              return checkIsEntityDid(value.toString());
+              return checkIsEntityDid(value);
             },
           }),
         action: () =>
@@ -51,7 +51,7 @@ export class UpdateEntityCommand implements Command {
           const did = await p.text({
             message: 'What is the DID of the controller you want to add?',
             validate(value) {
-              return checkIsEntityDid(value.toString());
+              return checkIsEntityDid(value);
             },
           });
           if (p.isCancel(did)) {

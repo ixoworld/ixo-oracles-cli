@@ -1,4 +1,3 @@
-'use server';
 import { toHex } from '@cosmjs/encoding';
 import { EncodeObject } from '@cosmjs/proto-signing';
 import { createRegistry } from '@ixo/impactxclient-sdk';

@@ -2,8 +2,9 @@ import { isCancel, log, spinner, text } from '@clack/prompts';
 import { customMessages, ixo, utils } from '@ixo/impactxclient-sdk';
 import { LinkedResource, Service } from '@ixo/impactxclient-sdk/types/codegen/ixo/iid/v1beta1/types';
 import { NETWORK } from '@ixo/signx-sdk/types/types/transact';
+import { logoutMatrixClient } from './account/matrix';
 import { registerUserSimplified, SimplifiedRegistrationResult } from './account/simplifiedRegistration';
-import { checkRequiredString, DOMAIN_INDEXER_URL, RELAYER_NODE_DID } from './common';
+import { checkRequiredPin, DOMAIN_INDEXER_URL, RELAYER_NODE_DID } from './common';
 import { publicUpload } from './matrix/upload-to-matrix';
 import { RuntimeConfig } from './runtime-config';
 import { Wallet } from './wallet';
@@ -16,6 +17,7 @@ interface CreateEntityParams {
     coverImage: string;
     location: string;
     description: string;
+    url?: string;
   };
   services: Service[];
   parentProtocol: string;
@@ -23,6 +25,7 @@ interface CreateEntityParams {
     oracleName: string;
     price: number;
   };
+  matrixHomeServerUrl: string;
 }
 type Denom = 'uixo' | 'ibc/6BBE9BD4246F8E04948D5A4EEE7164B2630263B9EBB5E7DC5F0A46C62A2FF97B';
 
@@ -33,52 +36,50 @@ export class CreateEntity {
       throw new Error('Wallet not found');
     }
     this.wallet = wallet;
-    this.MsgCreateEntityParams.value.verification = [
-      ...customMessages.iid.createIidVerificationMethods({
-        did: wallet.did,
-        pubkey: new Uint8Array(Buffer.from(wallet.pubKey)),
-        address: wallet.address,
-        controller: wallet.did,
-        type: wallet.algo === 'ed25519' ? 'ed' : 'secp',
-      }),
-    ];
-
-    this.MsgCreateEntityParams.value.context = [];
-    this.MsgCreateEntityParams.value.controller = [wallet.did];
-    this.MsgCreateEntityParams.value.ownerAddress = wallet.address;
-    this.MsgCreateEntityParams.value.ownerDid = wallet.did;
-    this.MsgCreateEntityParams.value.service.push(
-      ixo.iid.v1beta1.Service.fromPartial({
-        id: '{id}#matrix',
-        type: 'Matrix',
-        serviceEndpoint: 'devmx.ixo.earth',
-      })
-    );
-
-    this.MsgCreateEntityParams.value.relayerNode =
-      RELAYER_NODE_DID[(this.config.getValue('network') as NETWORK) ?? 'devnet'];
   }
-  private MsgCreateEntityParams = {
-    typeUrl: '/ixo.entity.v1beta1.MsgCreateEntity',
-    value: ixo.entity.v1beta1.MsgCreateEntity.fromPartial({
-      entityType: 'oracle',
-      context: [],
-      entityStatus: 0,
-      verification: [],
-      controller: [],
-      ownerAddress: '',
-      ownerDid: '',
-      relayerNode: '',
-      service: [],
-      linkedResource: [],
-      accordedRight: [],
-      linkedEntity: [],
-      linkedClaim: [],
-      startDate: utils.proto.toTimestamp(new Date()),
-      endDate: utils.proto.toTimestamp(new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000)),
-    }),
-  };
-  public addLinkedAccounts({ oracleAccountAddress }: { oracleAccountAddress: string }) {
+
+  private buildMsgCreateEntity(matrixHomeServerUrl: string) {
+    const msg = {
+      typeUrl: '/ixo.entity.v1beta1.MsgCreateEntity',
+      value: ixo.entity.v1beta1.MsgCreateEntity.fromPartial({
+        entityType: 'oracle',
+        context: [],
+        entityStatus: 0,
+        verification: [
+          ...customMessages.iid.createIidVerificationMethods({
+            did: this.wallet.did!,
+            pubkey: new Uint8Array(Buffer.from(this.wallet.pubKey!)),
+            address: this.wallet.address!,
+            controller: this.wallet.did!,
+            type: this.wallet.algo === 'ed25519' ? 'ed' : 'secp',
+          }),
+        ],
+        controller: [this.wallet.did!],
+        ownerAddress: this.wallet.address!,
+        ownerDid: this.wallet.did!,
+        relayerNode: RELAYER_NODE_DID[(this.config.getValue('network') as NETWORK) ?? 'devnet'],
+        service: [
+          ixo.iid.v1beta1.Service.fromPartial({
+            id: '{id}#matrix',
+            type: 'MatrixHomeServer',
+            serviceEndpoint: matrixHomeServerUrl,
+          }),
+        ],
+        linkedResource: [],
+        accordedRight: [],
+        linkedEntity: [],
+        linkedClaim: [],
+        startDate: utils.proto.toTimestamp(new Date()),
+        endDate: utils.proto.toTimestamp(new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000)),
+      }),
+    };
+    return msg;
+  }
+
+  public addLinkedAccounts(
+    msg: ReturnType<typeof this.buildMsgCreateEntity>,
+    { oracleAccountAddress }: { oracleAccountAddress: string }
+  ) {
     if (!this.wallet.signXClient || !this.wallet.wallet) {
       throw new Error('SignX client or wallet not found');
     }
@@ -98,16 +99,21 @@ export class CreateEntity {
       })
     );
 
-    this.MsgCreateEntityParams.value.linkedEntity = linkedAccounts;
+    msg.value.linkedEntity = linkedAccounts;
   }
+
   private async createAuthZConfig({
     oracleAccountAddress,
     oracleName,
     entityDid,
+    homeServerUrl,
+    accessToken,
   }: {
     oracleAccountAddress: string;
     oracleName: string;
     entityDid: string;
+    homeServerUrl: string;
+    accessToken: string;
   }): Promise<LinkedResource> {
     const config = {
       '@context': [
@@ -133,8 +139,8 @@ export class CreateEntity {
     const response = await publicUpload({
       data: config,
       fileName: 'authz',
-      config: this.config,
-      wallet: this.wallet,
+      homeServerUrl,
+      accessToken,
     });
 
     return ixo.iid.v1beta1.LinkedResource.fromPartial({
@@ -149,22 +155,18 @@ export class CreateEntity {
     });
   }
 
-  /**
-   * Create Fees Config
-   * @param entityDid
-   * @param price -- in credits
-   * @param denom -- the denom of the price
-   *
-   * The fees config is used to set the pricing for the oracle -- this config is fetched by the Frontend and any client to use the pricing for the oracle and grant max amount permissions
-   */
   private async createFeesConfig({
     entityDid,
     price,
     denom,
+    homeServerUrl,
+    accessToken,
   }: {
     entityDid: string;
     price: number;
     denom: Denom;
+    homeServerUrl: string;
+    accessToken: string;
   }): Promise<LinkedResource> {
     const config = {
       '@context': [
@@ -205,8 +207,8 @@ export class CreateEntity {
     const response = await publicUpload({
       data: config,
       fileName: 'fees',
-      config: this.config,
-      wallet: this.wallet,
+      homeServerUrl,
+      accessToken,
     });
     return ixo.iid.v1beta1.LinkedResource.fromPartial({
       id: '{id}#fee',
@@ -221,19 +223,7 @@ export class CreateEntity {
   }
 
   /**
-   * Create Oracle Config Files
-   * @param oracleAccountAddress
-   * @param oracleName
-   * @param entityDid
-   * @param price
-   *
-   * Using this after the entity is created to upload the config files to the entity using it's did
-   * this will do entity update to add the config files to the entity
-   */
-  /**
    * Add a controller to an existing entity
-   * @param entityDid - The DID of the entity to update
-   * @param controllerDid - The DID of the controller to add
    */
   public async addControllerToEntity(entityDid: string, controllerDid: string): Promise<void> {
     const walletAddress = this.wallet.wallet?.address;
@@ -264,7 +254,14 @@ export class CreateEntity {
     entityDid,
     price,
     oracleAccountAddress,
-  }: CreateEntityParams['oracleConfig'] & { entityDid: string; oracleAccountAddress: string }) {
+    homeServerUrl,
+    accessToken,
+  }: CreateEntityParams['oracleConfig'] & {
+    entityDid: string;
+    oracleAccountAddress: string;
+    homeServerUrl: string;
+    accessToken: string;
+  }) {
     const walletAddress = this.wallet.wallet?.address;
 
     if (!this.wallet.signXClient || !this.wallet.wallet || !walletAddress) {
@@ -276,6 +273,8 @@ export class CreateEntity {
         oracleName,
         entityDid,
         oracleAccountAddress,
+        homeServerUrl,
+        accessToken,
       }),
       this.createFeesConfig({
         entityDid,
@@ -284,6 +283,8 @@ export class CreateEntity {
           this.config.getValue('network') === 'devnet'
             ? 'uixo'
             : 'ibc/6BBE9BD4246F8E04948D5A4EEE7164B2630263B9EBB5E7DC5F0A46C62A2FF97B',
+        homeServerUrl,
+        accessToken,
       }),
     ]);
     const linkedResourcesMsgs = resources.map((resource) => ({
@@ -315,9 +316,13 @@ export class CreateEntity {
   private async createDomainCard({
     profile,
     entityDid,
+    homeServerUrl,
+    accessToken,
   }: {
     profile: CreateEntityParams['profile'];
     entityDid: string;
+    homeServerUrl: string;
+    accessToken: string;
   }): Promise<LinkedResource> {
     const validFrom = new Date().toISOString();
 
@@ -352,7 +357,7 @@ export class CreateEntity {
       },
       credentialSubject: {
         id: entityDid,
-        type: ['ixo:dao'],
+        type: ['ixo:oracle'],
         additionalType: ['schema:Organization'],
         name: profile.name,
         alternateName: profile.orgName !== profile.name ? [profile.orgName] : undefined,
@@ -373,14 +378,15 @@ export class CreateEntity {
           type: 'schema:PostalAddress',
           addressLocality: profile.location,
         },
+        ...(profile.url ? { url: profile.url } : {}),
       },
     };
 
     const response = await publicUpload({
       data: domainCard,
       fileName: 'domainCard',
-      config: this.config,
-      wallet: this.wallet,
+      homeServerUrl,
+      accessToken,
     });
 
     return ixo.iid.v1beta1.LinkedResource.fromPartial({
@@ -395,7 +401,16 @@ export class CreateEntity {
     });
   }
 
-  private async addProfile({ orgName, name, logo, coverImage, location, description }: CreateEntityParams['profile']) {
+  private async addProfile({
+    orgName,
+    name,
+    logo,
+    coverImage,
+    location,
+    description,
+    homeServerUrl,
+    accessToken,
+  }: CreateEntityParams['profile'] & { homeServerUrl: string; accessToken: string }) {
     const profileData = {
       '@context': {
         ixo: 'https://w3id.org/ixo/ns/protocol/',
@@ -417,11 +432,11 @@ export class CreateEntity {
     const response = await publicUpload({
       data: profileData,
       fileName: 'profile',
-      config: this.config,
-      wallet: this.wallet,
+      homeServerUrl,
+      accessToken,
     });
 
-    const profileResource = {
+    return ixo.iid.v1beta1.LinkedResource.fromPartial({
       id: '{id}#pro',
       type: 'Settings',
       description: 'Profile',
@@ -430,24 +445,17 @@ export class CreateEntity {
       proof: response.proof,
       encrypted: 'false',
       right: '',
-    };
-    this.MsgCreateEntityParams.value.linkedResource.push(ixo.iid.v1beta1.LinkedResource.fromPartial(profileResource));
+    });
   }
 
-  private addServices(services: Service[]) {
-    this.MsgCreateEntityParams.value.service.push(
-      ...services.map((service) => ixo.iid.v1beta1.Service.fromPartial(service))
-    );
+  private addServices(msg: ReturnType<typeof this.buildMsgCreateEntity>, services: Service[]) {
+    msg.value.service.push(...services.map((service) => ixo.iid.v1beta1.Service.fromPartial(service)));
   }
 
-  private setParentProtocol(parentProtocol: string) {
-    this.MsgCreateEntityParams.value.context.push(
+  private setParentProtocol(msg: ReturnType<typeof this.buildMsgCreateEntity>, parentProtocol: string) {
+    msg.value.context.push(
       ...customMessages.iid.createAgentIidContext([{ key: 'class', val: parentProtocol }])
     );
-  }
-
-  public returnExecutableMsg() {
-    return this.MsgCreateEntityParams;
   }
 
   private async submitToDomainIndexer(entityDid: string): Promise<void> {
@@ -479,25 +487,21 @@ export class CreateEntity {
   }
 
   public async execute(params: CreateEntityParams): Promise<string> {
-    log.info('Adding profile');
-    await this.addProfile(params.profile);
-    log.info('Adding services');
-    this.addServices(params.services);
-    log.info('Adding parent protocol');
-    this.setParentProtocol(params.parentProtocol);
-
-    const msg = this.returnExecutableMsg();
     if (!this.wallet.signXClient || !this.wallet.wallet) {
       throw new Error('SignX client not found');
     }
 
+    const { matrixHomeServerUrl } = params;
+
+    // =================================================================================================
+    // 1. REGISTER ORACLE FIRST — we need oracle's credentials for uploads
+    // =================================================================================================
     log.info('Creating Oracle Wallet and Matrix Account');
     const pin = await text({
-      message: 'Enter a PIN to secure your Matrix Vault:',
-      initialValue: '',
-      defaultValue: '',
+      message: 'Enter a 6-digit PIN to secure your Matrix Vault:',
+      placeholder: '123456',
       validate(value) {
-        return checkRequiredString(value, 'PIN is required');
+        return checkRequiredPin(value);
       },
     });
     if (isCancel(pin)) {
@@ -510,13 +514,45 @@ export class CreateEntity {
         oracleName: params.oracleConfig.oracleName,
         network: this.config.getValue('network') as NETWORK,
         oracleAvatarUrl: params.profile.logo,
+        matrixHomeServerUrl,
       },
       async (address) => {
         await this.wallet.sendTokens(address, 250_000); // 250,000 uixo = 0.25 IXO;
       }
     );
 
-    this.addLinkedAccounts({
+    // Oracle's credentials for uploading to oracle's Matrix server
+    const oracleHomeServerUrl = registerResult.matrixHomeServerUrl;
+    const oracleAccessToken = registerResult.matrixAccessToken;
+
+    // =================================================================================================
+    // 2. UPLOAD PROFILE using oracle's credentials
+    // =================================================================================================
+    log.info('Adding profile');
+    const profileResource = await this.addProfile({
+      ...params.profile,
+      homeServerUrl: oracleHomeServerUrl,
+      accessToken: oracleAccessToken,
+    });
+
+    // =================================================================================================
+    // 3. BUILD AND BROADCAST MsgCreateEntity
+    // =================================================================================================
+    const msg = this.buildMsgCreateEntity(matrixHomeServerUrl);
+
+    // Add profile linked resource
+    msg.value.linkedResource.push(profileResource);
+
+    // Add services
+    log.info('Adding services');
+    this.addServices(msg, params.services);
+
+    // Add parent protocol
+    log.info('Adding parent protocol');
+    this.setParentProtocol(msg, params.parentProtocol);
+
+    // Add linked accounts
+    this.addLinkedAccounts(msg, {
       oracleAccountAddress: registerResult.address,
     });
 
@@ -533,11 +569,15 @@ export class CreateEntity {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const did = utils.common.getValueFromEvents(response as any, 'wasm', 'token_id');
 
-    // Create domain card
+    // =================================================================================================
+    // 4. CREATE AND ATTACH DOMAIN CARD using oracle's credentials
+    // =================================================================================================
     log.info('Creating domain card');
     const domainCardResource = await this.createDomainCard({
       profile: params.profile,
       entityDid: did,
+      homeServerUrl: oracleHomeServerUrl,
+      accessToken: oracleAccessToken,
     });
 
     // Add domain card to entity
@@ -566,13 +606,28 @@ export class CreateEntity {
       log.success('Domain card added to entity');
     }
 
+    // =================================================================================================
+    // 5. CREATE AND ATTACH CONFIG FILES using oracle's credentials
+    // =================================================================================================
     await this.createOracleConfigFiles({
       oracleName: params.oracleConfig.oracleName,
       price: params.oracleConfig.price,
       oracleAccountAddress: registerResult.address,
       entityDid: did,
+      homeServerUrl: oracleHomeServerUrl,
+      accessToken: oracleAccessToken,
     });
     log.success('Entity created -- config files attached');
+
+    // =================================================================================================
+    // 6. LOGOUT ORACLE's Matrix session (no longer needed)
+    // =================================================================================================
+    await logoutMatrixClient({
+      baseUrl: oracleHomeServerUrl,
+      accessToken: oracleAccessToken,
+      userId: registerResult.matrixUserId,
+      deviceId: '',
+    });
 
     const s = spinner();
     s.start('Creating Entity Matrix Room...');
@@ -585,6 +640,7 @@ export class CreateEntity {
     }
     this.config.addValue('registerUserResult', registerResult);
     this.config.addValue('entityDid', did);
+    this.config.addValue('oracleMatrixHomeServerUrl', matrixHomeServerUrl);
 
     // Submit to domain indexer
     log.info('Submitting domain card to domain indexer');

@@ -33,19 +33,31 @@ export class Wallet {
         const walletData = readFileSync(WALLET_PATH, 'utf8');
         this.wallet = JSON.parse(walletData) as WalletProps;
 
-        // get network from matrix
-        // userid @did-ixo-ixo15a7p9d4n8wjh6wcsqk53g4yk7u3ztqpuymznxn:devmx.ixo.earth
-        const mxDomain = this.wallet.matrix.userId?.split(':')[1];
-        const mxDomainToNetwork = {
-          'devmx.ixo.earth': 'devnet',
-          'testmx.ixo.earth': 'testnet',
-          'mx.ixo.earth': 'mainnet',
-        } as const;
-        const network = mxDomainToNetwork[mxDomain as keyof typeof mxDomainToNetwork];
-        if (!network) {
-          throw new Error('Invalid matrix domain');
+        // Validate that matrix userId is present — required for homeserver derivation
+        if (!this.wallet.matrix?.userId || !this.wallet.matrix.userId.includes(':')) {
+          log.warning('Wallet is missing valid Matrix credentials. Please re-authenticate via SignX.');
+          this.wallet = undefined;
+          return;
         }
-        this.wallet.network = network;
+
+        // Use wallet.network directly from WalletProps (provided by SignX)
+        let network = this.wallet.network;
+
+        // Fallback: derive network from matrix domain for wallets saved before network field was added
+        if (!network) {
+          const mxDomain = this.wallet.matrix.userId.split(':')[1];
+          const mxDomainToNetwork = {
+            'devmx.ixo.earth': 'devnet',
+            'testmx.ixo.earth': 'testnet',
+            'mx.ixo.earth': 'mainnet',
+          } as const;
+          network = mxDomainToNetwork[mxDomain as keyof typeof mxDomainToNetwork];
+          if (!network) {
+            throw new Error(`Cannot determine network from matrix domain: ${mxDomain}`);
+          }
+          this.wallet.network = network;
+        }
+
         this.config.addValue('network', network);
 
         // set signx client
@@ -112,6 +124,17 @@ export class Wallet {
 
   get matrix() {
     return this.wallet?.matrix;
+  }
+
+  /**
+   * Extracts the Matrix homeserver URL from the user's matrix userId.
+   * e.g. @user:devmx.ixo.earth → https://devmx.ixo.earth
+   */
+  get matrixHomeServer(): string | undefined {
+    const userId = this.wallet?.matrix?.userId;
+    if (!userId || !userId.includes(':')) return undefined;
+    const domain = userId.split(':')[1];
+    return `https://${domain}`;
   }
 
   public reloadWallet() {

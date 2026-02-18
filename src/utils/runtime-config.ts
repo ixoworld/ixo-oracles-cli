@@ -9,6 +9,7 @@ interface Config {
   entityDid: string;
   network: NETWORK;
   repo: string;
+  oracleMatrixHomeServerUrl: string;
   registerUserResult: SimplifiedRegistrationResult & {
     matrixDeviceName: string;
   };

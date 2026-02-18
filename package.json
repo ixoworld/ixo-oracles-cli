@@ -1,6 +1,6 @@
 {
   "name": "ixo-oracles-cli",
-  "version": "1.0.6",
+  "version": "1.1.0",
   "description": "CLI tool for creating and managing IXO Oracle projects",
   "main": "dist/cli.js",
   "type": "module",
@@ -47,12 +47,12 @@
     "README.md"
   ],
   "dependencies": {
-    "@clack/prompts": "^0.11.0",
+    "@clack/prompts": "^1.0.1",
     "@cosmjs/crypto": "^0.34.0",
     "@cosmjs/encoding": "^0.34.0",
     "@cosmjs/proto-signing": "^0.34.0",
     "@ixo/impactxclient-sdk": "^2.4.1",
-    "@ixo/matrixclient-sdk": "^0.3.4",
+    "@ixo/matrixclient-sdk": "^1.0.0",
     "@ixo/signx-sdk": "^1.2.0",
     "@matrix-org/matrix-sdk-crypto-wasm": "^15.1.0",
     "eciesjs": "^0.4.15",

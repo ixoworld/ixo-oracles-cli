@@ -1,16 +1,16 @@
 import fs from 'fs';
 import path from 'path';
 import { mxLogin } from './account/matrix';
-import { MatrixHomeServerUrl } from './common';
 import { RuntimeConfig } from './runtime-config';
 export const createProjectEnvFile = async (config: RuntimeConfig) => {
+  const oracleMatrixHomeServerUrl = config.getOrThrow('oracleMatrixHomeServerUrl');
+
   const freshMx = await mxLogin({
-    homeServerUrl: MatrixHomeServerUrl[config.getOrThrow('network')],
+    homeServerUrl: oracleMatrixHomeServerUrl,
     username: config.getOrThrow('registerUserResult').matrixUserId,
     password: config.getOrThrow('registerUserResult').matrixPassword,
     deviceName: config.getOrThrow('registerUserResult').matrixDeviceName,
   });
-  const network = config.getOrThrow('network');
   const projectPath = config.getOrThrow('projectPath');
   const envFile = path.join(projectPath, 'apps', 'app', '.env');
 
@@ -24,11 +24,11 @@ export const createProjectEnvFile = async (config: RuntimeConfig) => {
     fs.mkdirSync(envDir, { recursive: true });
   }
   const envContent = `
-PORT=4000 
+PORT=4000
 ORACLE_NAME=${config.getValue('projectName')}
 
 # Matrix
-MATRIX_BASE_URL=${MatrixHomeServerUrl[network]}
+MATRIX_BASE_URL=${oracleMatrixHomeServerUrl}
 MATRIX_ORACLE_ADMIN_ACCESS_TOKEN=${freshMx.accessToken}
 MATRIX_ORACLE_ADMIN_PASSWORD=${config.getOrThrow('registerUserResult').matrixPassword}
 MATRIX_ORACLE_ADMIN_USER_ID=${config.getOrThrow('registerUserResult').matrixUserId}

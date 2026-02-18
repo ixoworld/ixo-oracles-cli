@@ -1,10 +1,7 @@
 import { Coin, DecodeObject } from '@cosmjs/proto-signing';
-import { createQueryClient, createRegistry, utils } from '@ixo/impactxclient-sdk';
+import { createRegistry, utils } from '@ixo/impactxclient-sdk';
 import { Grant } from '@ixo/impactxclient-sdk/types/codegen/cosmos/feegrant/v1beta1/feegrant';
 import { Timestamp } from '@ixo/impactxclient-sdk/types/codegen/google/protobuf/timestamp';
-
-import { NETWORK } from '@ixo/signx-sdk/types/types/transact';
-import { CHAIN_RPC } from '../common';
 
 /**
  * Converts a timestamp object to a timestamp
@@ -30,51 +27,6 @@ export const FEEGRANT_TYPES: Record<FeegrantTypes, string> = {
   BasicAllowance: '/cosmos.feegrant.v1beta1.BasicAllowance',
   PeriodicAllowance: '/cosmos.feegrant.v1beta1.PeriodicAllowance',
 };
-
-/**
- * Queries the address allowances from the IXO blockchain
- * @param address - The address to query allowances for
- * @returns The allowances for the address
- */
-export async function queryAddressAllowances(address: string, network: NETWORK) {
-  try {
-    const url = CHAIN_RPC[network];
-    if (!url) {
-      throw new Error(`Invalid network: ${network}`);
-    }
-    const queryClient = await createQueryClient(url);
-    const allowancesResponse = await queryClient.cosmos.feegrant.v1beta1.allowances({
-      grantee: address,
-    });
-    return allowancesResponse?.allowances ?? [];
-  } catch (error) {
-    console.error('queryAddressAllowances::', (error as Error).message);
-    return undefined;
-  }
-}
-
-/**
- * Checks if the address has a valid feegrant (not expired yet and limit not reached yet)
- * @param address - The address to check feegrant for
- * @returns True if the address has a valid feegrant, false otherwise
- */
-export async function checkAddressFeegrant(address: string, network: NETWORK) {
-  try {
-    const allowancesResponse = await queryAddressAllowances(address, network);
-    console.log('allowancesResponse', allowancesResponse);
-    if (!allowancesResponse?.length) {
-      return false;
-    }
-    const allowances = decodeGrants(allowancesResponse);
-    return allowances.some(
-      (allowance) =>
-        !!allowance && !isAllowanceExpired(allowance.expiration as number) && !isAllowanceLimitReached(allowance.limit)
-    );
-  } catch (error) {
-    console.error('checkAddressFeegrant::', (error as Error).message);
-    throw error;
-  }
-}
 
 /**
  * Decodes the grant values from the the user's list of allowances
