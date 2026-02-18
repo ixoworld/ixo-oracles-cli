@@ -2,7 +2,15 @@ import * as p from '@clack/prompts';
 import { NETWORK } from '@ixo/signx-sdk/types/types/transact';
 import { Command } from '.';
 import { CLIResult } from '../types';
-import { checkRequiredNumber, checkRequiredString, checkRequiredURL, PORTAL_URL, selectNetwork } from '../utils/common';
+import {
+  checkRequiredMatrixUrl,
+  checkRequiredNumber,
+  checkRequiredString,
+  checkRequiredURL,
+  MatrixHomeServerUrl,
+  PORTAL_URL,
+  selectNetwork,
+} from '../utils/common';
 import { CreateEntity } from '../utils/entity';
 import { RuntimeConfig } from '../utils/runtime-config';
 import { Wallet } from '../utils/wallet';
@@ -10,19 +18,30 @@ import { Wallet } from '../utils/wallet';
 export class CreateEntityCommand implements Command {
   name = 'create-entity';
   description = 'Create an entity';
-  private readonly createEntity: CreateEntity;
 
-  constructor(private wallet: Wallet, private config: RuntimeConfig) {
-    this.createEntity = new CreateEntity(this.wallet, this.config);
-  }
+  constructor(private wallet: Wallet, private config: RuntimeConfig) {}
 
   async execute(): Promise<CLIResult> {
     const network = this.config.getValue('network') as NETWORK;
     if (!network) {
       await selectNetwork(this.config);
     }
+
+    // Determine default Matrix homeserver URL from wallet or static map
+    const defaultMatrixUrl =
+      this.wallet.matrixHomeServer ?? MatrixHomeServerUrl[(this.config.getValue('network') as NETWORK) ?? 'devnet'];
+
     const results = await p.group(
       {
+        matrixHomeServerUrl: () =>
+          p.text({
+            message: 'Matrix homeserver URL for the oracle:',
+            initialValue: defaultMatrixUrl,
+            defaultValue: defaultMatrixUrl,
+            validate(value) {
+              return checkRequiredMatrixUrl(value);
+            },
+          }),
         oracleName: () =>
           p.text({
             message: 'What is the name of the oracle?',
@@ -36,7 +55,7 @@ export class CreateEntityCommand implements Command {
             message: 'What is the price of the oracle in IXO CREDITS?',
             initialValue: '100',
             validate(value) {
-              return checkRequiredNumber(parseInt(value), 'Oracle price is required and must be a number');
+              return checkRequiredNumber(parseInt(value ?? ''), 'Oracle price is required and must be a number');
             },
           }),
         profile: () =>
@@ -93,6 +112,11 @@ export class CreateEntityCommand implements Command {
                   return checkRequiredString(value, 'Description is required');
                 },
               }),
+            url: () =>
+              p.text({
+                message: 'What is the website URL of the oracle? (optional, press Enter to skip)',
+                placeholder: 'https://your-oracle-website.com',
+              }),
           }),
         parentProtocol: () =>
           p.select({
@@ -125,7 +149,10 @@ export class CreateEntityCommand implements Command {
       }
     );
 
-    const did = await this.createEntity.execute({
+    // Defer CreateEntity construction to execute() so matrixHomeServerUrl can be used
+    const createEntity = new CreateEntity(this.wallet, this.config);
+
+    const did = await createEntity.execute({
       oracleConfig: {
         oracleName: results.oracleName,
         price: parseInt(results.oraclePrice),
@@ -137,6 +164,7 @@ export class CreateEntityCommand implements Command {
         coverImage: results.profile.coverImage as string,
         location: results.profile.location,
         description: results.profile.description,
+        ...(results.profile.url ? { url: results.profile.url } : {}),
       },
       services: [
         {
@@ -151,6 +179,7 @@ export class CreateEntityCommand implements Command {
         },
       ],
       parentProtocol: results.parentProtocol,
+      matrixHomeServerUrl: results.matrixHomeServerUrl,
     });
 
     p.log.info(`API for the oracle is: ${results.apiUrl} | You can change this after you deploy the oracle`);

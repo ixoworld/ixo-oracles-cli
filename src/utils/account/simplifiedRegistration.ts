@@ -1,8 +1,8 @@
-import { utils } from '@ixo/impactxclient-sdk';
+import { ixo, utils } from '@ixo/impactxclient-sdk';
 import { createMatrixApiClient } from '@ixo/matrixclient-sdk';
 
 import { NETWORK } from '@ixo/signx-sdk/types/types/transact';
-import { MatrixHomeServerUrl, MatrixRoomBotServerUrl } from '../common';
+import { deriveMatrixUrls } from '../common';
 import {
   checkIsUsernameAvailable,
   createMatrixClient,
@@ -11,7 +11,6 @@ import {
   generateUsernameFromAddress,
   generateUserRoomAliasFromAddress,
   hasCrossSigningAccountData,
-  logoutMatrixClient,
   mxRegisterWithSecp,
   setupCrossSigning,
 } from './matrix';
@@ -27,6 +26,7 @@ export interface SimplifiedRegistrationResult {
   matrixPassword: string;
   matrixAccessToken: string;
   matrixRecoveryPhrase: string;
+  matrixHomeServerUrl: string;
   pin: string;
   matrixDeviceName: string;
 }
@@ -36,7 +36,11 @@ const DEVICE_NAME = 'Oracles CLI';
  * Simplified user registration flow without email verification or passkey authentication
  * Includes: wallet creation, DID creation, Matrix account with secp auth, Matrix room setup, encrypted mnemonic storage
  * @param pin - User PIN for encrypting Matrix mnemonic
+ * @param matrixHomeServerUrl - The Matrix homeserver URL to use for registration
  * @returns Registration result with wallet and Matrix account details
+ *
+ * Note: The returned matrixAccessToken is still valid — the caller is responsible for
+ * logging out the oracle's Matrix session after completing any uploads.
  */
 export async function registerUserSimplified(
   {
@@ -44,15 +48,19 @@ export async function registerUserSimplified(
     oracleName,
     network,
     oracleAvatarUrl,
+    matrixHomeServerUrl,
   }: {
     pin: string;
     oracleName: string;
     network: NETWORK;
     oracleAvatarUrl: string;
+    matrixHomeServerUrl: string;
   },
   transferTokens: (address: string) => Promise<void>
 ): Promise<SimplifiedRegistrationResult> {
   try {
+    const { homeServerUrl, roomBotUrl } = deriveMatrixUrls(matrixHomeServerUrl);
+
     // =================================================================================================
     // 1. CREATE WALLET
     // =================================================================================================
@@ -65,14 +73,19 @@ export async function registerUserSimplified(
     await transferTokens(address);
 
     // =================================================================================================
-    // 2. DID CREATION
+    // 2. DID CREATION (with {did}#matrix service embedded)
     // =================================================================================================
     const did = utils.did.generateSecpDid(address);
     const didExists = await checkIidDocumentExists(did, network);
     console.log('✅ DID exists:', didExists);
     if (!didExists) {
       console.log('✅ DID does not exist, creating...');
-      await createIidDocument(did, network, wallet);
+      const matrixService = ixo.iid.v1beta1.Service.fromPartial({
+        id: `${did}#matrix`,
+        type: 'MatrixHomeServer',
+        serviceEndpoint: homeServerUrl,
+      });
+      await createIidDocument(did, network, wallet, [matrixService]);
       console.log('✅ DID created, waiting 500ms...');
       await delay(500);
       console.log('✅ Checking if DID exists...');
@@ -87,7 +100,6 @@ export async function registerUserSimplified(
     // 3. MATRIX ACCOUNT CREATION
     // =================================================================================================
     const mxMnemonic = utils.mnemonic.generateMnemonic(12);
-    const homeServerUrl = MatrixHomeServerUrl[network];
     const mxUsername = generateUsernameFromAddress(address);
     const mxPassword = generatePasswordFromMnemonic(mxMnemonic);
     const mxPassphrase = generatePassphraseFromMnemonic(mxMnemonic);
@@ -101,11 +113,8 @@ export async function registerUserSimplified(
       throw new Error('Matrix account already exists');
     }
 
-    // Clear any residual matrix data
-    // await logoutMatrixClient({ baseUrl: homeServerUrl, accessToken: '', userId: '', deviceId: '' });
-
     // Register using secp256k1 signature (not passkey)
-    const account = await mxRegisterWithSecp(address, mxPassword, DEVICE_NAME, wallet, network);
+    const account = await mxRegisterWithSecp(address, mxPassword, DEVICE_NAME, wallet, homeServerUrl, roomBotUrl);
     if (!account?.accessToken) {
       throw new Error('Failed to register matrix account');
     }
@@ -155,7 +164,7 @@ export async function registerUserSimplified(
 
     if (!roomId) {
       // Create room via bot
-      const response = await fetch(`${MatrixRoomBotServerUrl[network]}/room/source`, {
+      const response = await fetch(`${roomBotUrl}/room/source`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -196,7 +205,7 @@ export async function registerUserSimplified(
     // =================================================================================================
     const encryptedMnemonic = encrypt(mxMnemonic, pin);
     const storeEncryptedMnemonicResponse = await fetch(
-      `${homeServerUrl}/_matrix/client/r0/rooms/${roomId}/state/ixo.room.state.secure/encrypted_mnemonic`,
+      `${homeServerUrl}/_matrix/client/v3/rooms/${roomId}/state/ixo.room.state.secure/encrypted_mnemonic`,
       {
         method: 'PUT',
         headers: {
@@ -215,18 +224,13 @@ export async function registerUserSimplified(
     console.log('✅ Encrypted Matrix mnemonic stored in room');
 
     // =================================================================================================
-    // 7. LOGOUT MATRIX CLIENT
+    // 7. STOP MATRIX CLIENT (but do NOT logout — access token is needed for subsequent uploads)
+    // The caller is responsible for logging out when done with the oracle's credentials.
     // =================================================================================================
-    await logoutMatrixClient({
-      mxClient,
-      baseUrl: homeServerUrl,
-      accessToken: account.accessToken,
-      userId: account.userId,
-      deviceId: account.deviceId,
-    });
+    mxClient.stopClient();
 
     // =================================================================================================
-    // 7. RETURN REGISTRATION RESULT
+    // 8. RETURN REGISTRATION RESULT
     // =================================================================================================
     return {
       address: address,
@@ -238,6 +242,7 @@ export async function registerUserSimplified(
       matrixPassword: mxPassword,
       matrixAccessToken: account.accessToken,
       matrixRecoveryPhrase: mxPassphrase,
+      matrixHomeServerUrl: homeServerUrl,
       pin: pin,
       matrixDeviceName: DEVICE_NAME,
     };

@@ -12,8 +12,8 @@ importers:
   .:
     dependencies:
       '@clack/prompts':
-        specifier: ^0.11.0
-        version: 0.11.0
+        specifier: ^1.0.1
+        version: 1.0.1
       '@cosmjs/crypto':
         specifier: ^0.34.0
         version: 0.34.0
@@ -27,8 +27,8 @@ importers:
         specifier: ^2.4.1
         version: 2.4.1
       '@ixo/matrixclient-sdk':
-        specifier: ^0.3.4
-        version: 0.3.4
+        specifier: ^1.0.0
+        version: 1.0.0
       '@ixo/signx-sdk':
         specifier: ^1.2.0
         version: 1.2.0
@@ -276,11 +276,11 @@ packages:
   '@bcoe/v8-coverage@0.2.3':
     resolution: {integrity: sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==}
 
-  '@clack/core@0.5.0':
-    resolution: {integrity: sha512-p3y0FIOwaYRUPRcMO7+dlmLh8PSRcrjuTndsiA0WAFbWES0mLZlrjVoBRZ9DzkPFJZG6KGkJmoEAY0ZcVWTkow==}
+  '@clack/core@1.0.1':
+    resolution: {integrity: sha512-WKeyK3NOBwDOzagPR5H08rFk9D/WuN705yEbuZvKqlkmoLM2woKtXb10OO2k1NoSU4SFG947i2/SCYh+2u5e4g==}
 
-  '@clack/prompts@0.11.0':
-    resolution: {integrity: sha512-pMN5FcrEw9hUkZA4f+zLlzivQSeQf5dRGJjSUbvVYDLvpKCdQx5OaknvKzgbtXOizhP+SJJJjqEbOe55uKKfAw==}
+  '@clack/prompts@1.0.1':
+    resolution: {integrity: sha512-/42G73JkuYdyWZ6m8d/CJtBrGl1Hegyc7Fy78m5Ob+jF85TOUmLR5XLce/U3LxYAw0kJ8CT5aI99RIvPHcGp/Q==}
 
   '@confio/ics23@0.6.8':
     resolution: {integrity: sha512-wB6uo+3A50m0sW/EWcU64xpV/8wShZ6bMTa7pF8eYsTrSkQA7oLUIJcs/wb8g4y2Oyq701BaGiO6n/ak5WXO1w==}
@@ -551,8 +551,8 @@ packages:
   '@ixo/impactxclient-sdk@2.4.1':
     resolution: {integrity: sha512-os0fllhn80KsH4Y+GiepGmWbTeva23RXWL1qux2XeNS3RNg8hYV6ahpNJtHy7rIzF7e10fVspZ73u00j6QwBDQ==}
 
-  '@ixo/matrixclient-sdk@0.3.4':
-    resolution: {integrity: sha512-HDk6ok8uo+/v1dECP2bjdUhN6kBPD3qnUQwd4+h5cNyZF6qiu1wAaVyysIUc9yZZ6UyhqTp4o6ZmXGfYXCwjPg==}
+  '@ixo/matrixclient-sdk@1.0.0':
+    resolution: {integrity: sha512-+9N3eJU1QlmQOk5vN/mwLObVw/WFesvvbJ4IHjxvjdwKdHtZU6okrOpnd7ICjj6VU4qeEXEFXvJJBbil7CQf3Q==}
 
   '@ixo/signx-sdk@1.2.0':
     resolution: {integrity: sha512-is6bd8mGY+nF+kz4PTqemeD1zSIkGsVzkcx9SMf3CIeEYEjYt3dYdix8oLGpKWSXkry43y03xEP0y7H6dgG2uQ==}
@@ -2853,14 +2853,14 @@ snapshots:
 
   '@bcoe/v8-coverage@0.2.3': {}
 
-  '@clack/core@0.5.0':
+  '@clack/core@1.0.1':
     dependencies:
       picocolors: 1.1.1
       sisteransi: 1.0.5
 
-  '@clack/prompts@0.11.0':
+  '@clack/prompts@1.0.1':
     dependencies:
-      '@clack/core': 0.5.0
+      '@clack/core': 1.0.1
       picocolors: 1.1.1
       sisteransi: 1.0.5
 
@@ -3188,7 +3188,7 @@ snapshots:
       - debug
       - utf-8-validate
 
-  '@ixo/matrixclient-sdk@0.3.4':
+  '@ixo/matrixclient-sdk@1.0.0':
     dependencies:
       '@babel/runtime': 7.19.4
       '@cosmjs/stargate': 0.32.0
