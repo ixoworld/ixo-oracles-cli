@@ -1,7 +1,7 @@
-import fs from 'fs';
-import path from 'path';
-import { NETWORK } from '@ixo/signx-sdk/types/types/transact';
-import { mxLogin } from './account/matrix';
+import fs from "fs";
+import path from "path";
+import { NETWORK } from "@ixo/signx-sdk/types/types/transact";
+import { mxLogin } from "./account/matrix";
 import {
   BLOCKSYNC_GRAPHQL_URL,
   CHAIN_RPC,
@@ -11,8 +11,8 @@ import {
   MEMORY_ENGINE_MCP,
   SANDBOX_API,
   SUBSCRIPTION_API,
-} from './common';
-import { RuntimeConfig } from './runtime-config';
+} from "./common";
+import { RuntimeConfig } from "./runtime-config";
 
 interface EnvValues {
   oracleName: string;
@@ -147,17 +147,19 @@ LANGSMITH_PROJECT="${oracleName}_${net}"
 function writeEnvFile(filePath: string, content: string): void {
   try {
     fs.writeFileSync(filePath, content);
-    console.log('✅ env file created successfully at:', filePath);
+    console.log("✅ env file created successfully at:", filePath);
   } catch (error) {
-    console.error('❌ Failed to create env file:', filePath, error);
+    console.error("❌ Failed to create env file:", filePath, error);
     throw error;
   }
 }
 
 export const createProjectEnvFile = async (config: RuntimeConfig) => {
-  const oracleMatrixHomeServerUrl = config.getOrThrow('oracleMatrixHomeServerUrl');
-  const network = config.getOrThrow('network') as NETWORK;
-  const regResult = config.getOrThrow('registerUserResult');
+  const oracleMatrixHomeServerUrl = config.getOrThrow(
+    "oracleMatrixHomeServerUrl",
+  );
+  const network = config.getOrThrow("network") as NETWORK;
+  const regResult = config.getOrThrow("registerUserResult");
 
   const freshMx = await mxLogin({
     homeServerUrl: oracleMatrixHomeServerUrl,
@@ -165,17 +167,17 @@ export const createProjectEnvFile = async (config: RuntimeConfig) => {
     password: regResult.matrixPassword,
     deviceName: regResult.matrixDeviceName,
   });
-  const projectPath = config.getOrThrow('projectPath');
-  const envDir = path.join(projectPath, 'apps', 'app');
+  const projectPath = config.getOrThrow("projectPath");
+  const envDir = path.join(projectPath, "apps", "app");
 
-  console.log('Creating env files in:', envDir);
+  console.log("Creating env files in:", envDir);
 
   if (!fs.existsSync(envDir)) {
-    console.log('Creating directory:', envDir);
+    console.log("Creating directory:", envDir);
     fs.mkdirSync(envDir, { recursive: true });
   }
 
-  const oracleName = (config.getValue('projectName') as string) ?? '';
+  const oracleName = (config.getValue("projectName") as string) ?? "";
 
   // Write main .env with full values for the current network
   const envContent = buildEnvContent(network, {
@@ -189,7 +191,7 @@ export const createProjectEnvFile = async (config: RuntimeConfig) => {
     matrixPin: regResult.pin,
     matrixRoomId: regResult.matrixRoomId,
     mnemonic: regResult.mnemonic,
-    entityDid: config.getOrThrow('entityDid'),
+    entityDid: config.getOrThrow("entityDid"),
     oracleAddress: regResult.address,
     oracleDid: regResult.did,
   });
@@ -198,13 +200,13 @@ export const createProjectEnvFile = async (config: RuntimeConfig) => {
   writeEnvFile(path.join(envDir, networkFilename), envContent);
 
   // Copy to .env (active config the app reads)
-  writeEnvFile(path.join(envDir, '.env'), envContent);
+  writeEnvFile(path.join(envDir, ".env"), envContent);
 
   // Write blank templates for other networks only if they don't already exist
   const allNetworks: { net: NETWORK; filename: string }[] = [
-    { net: 'devnet', filename: '.env.devnet' },
-    { net: 'testnet', filename: '.env.testnet' },
-    { net: 'mainnet', filename: '.env.mainnet' },
+    { net: "devnet", filename: ".env.devnet" },
+    { net: "testnet", filename: ".env.testnet" },
+    { net: "mainnet", filename: ".env.mainnet" },
   ];
 
   for (const { net, filename } of allNetworks) {
