@@ -1,14 +1,14 @@
-# IXO Oracles CLI
+# QiForge CLI
 
 A command-line interface for creating and managing IXO Oracle projects. This CLI helps you set up AI Agent oracles built with LangGraph, using Matrix as a datastore with linked resources stored on the IXO blockchain.
 
-## What is IXO Oracles CLI?
+## What is QiForge CLI?
 
-The IXO Oracles CLI automates the complete setup of AI Agent oracle projects. It handles:
+The QiForge CLI automates the complete setup of AI Agent oracle projects. It handles:
 
 - **Blockchain Integration**: Creates entities on the IXO blockchain with linked resources stored in Matrix
 - **Matrix Account Creation**: Sets up Matrix accounts for data storage and communication
-- **Project Initialization**: Clones the [IXO Oracles boilerplate](https://github.com/ixoworld/qiforge) and configures the environment
+- **Project Initialization**: Clones the [QiForge boilerplate](https://github.com/ixoworld/qiforge) and configures the environment
 - **Authentication**: Integrates with SignX for secure blockchain operations
 
 ## Prerequisites
@@ -21,13 +21,13 @@ The IXO Oracles CLI automates the complete setup of AI Agent oracle projects. It
 Install the CLI globally using npm:
 
 ```bash
-npm install -g ixo-oracles-cli
+npm install -g qiforge-cli
 ```
 
 Or with pnpm:
 
 ```bash
-pnpm add -g ixo-oracles-cli
+pnpm add -g qiforge-cli
 ```
 
 **Important for pnpm users:** After installation, you need to approve build scripts:
@@ -47,7 +47,7 @@ Do you approve? (y/N) · true
 Or with yarn:
 
 ```bash
-yarn global add ixo-oracles-cli
+yarn global add qiforge-cli
 ```
 
 ## Quick Start
@@ -55,33 +55,33 @@ yarn global add ixo-oracles-cli
 1. **Initialize a new oracle project:**
 
    ```bash
-   oracles-cli --init
+   qiforge-cli --init
    ```
 
 2. **Or run the interactive CLI:**
 
    ```bash
-   oracles-cli
+   qiforge-cli
    ```
 
 3. **Follow the prompts:**
    - First-time users will need to login with SignX (keep your IXO Mobile App open)
    - Enter your project name
-   - Select the template (IXO Oracles boilerplate or custom)
+   - Select the template (QiForge boilerplate or custom)
    - Configure your oracle details
 
 ## Commands
 
-### `oracles-cli --init` - Initialize Project
+### `qiforge-cli --init` - Initialize Project
 
 Creates a new IXO Oracle project with all necessary components:
 
-- **Project Setup**: Creates directory and clones the IXO Oracles boilerplate
+- **Project Setup**: Creates directory and clones the QiForge boilerplate
 - **Entity Creation**: Creates a blockchain entity with linked resources stored in Matrix
 - **Matrix Account**: Sets up Matrix account for data storage
 - **Environment Configuration**: Creates `.env` file with all necessary variables
 
-### `oracles-cli` - Interactive Menu
+### `qiforge-cli` - Interactive Menu
 
 Launches an interactive menu with the following options:
 

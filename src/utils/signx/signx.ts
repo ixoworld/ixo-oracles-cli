@@ -28,7 +28,7 @@ export class SignXClient {
   static loadFromWallet(wallet: WalletProps) {
     return new IxoSignX({
       endpoint: SignXEndpoints[wallet.network],
-      sitename: 'IXO Oracles CLI',
+      sitename: 'QiForge CLI',
       network: wallet.network,
     });
   }
@@ -36,7 +36,7 @@ export class SignXClient {
   constructor(chainNetwork: keyof typeof SignXEndpoints) {
     this.signXClient = new IxoSignX({
       endpoint: SignXEndpoints[chainNetwork],
-      sitename: 'IXO Oracles CLI',
+      sitename: 'QiForge CLI',
       network: chainNetwork,
     });
   }

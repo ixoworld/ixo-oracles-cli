@@ -89,7 +89,7 @@ SUBSCRIPTION_URL=${SUBSCRIPTION_API[net]}
 }
 
 function buildEnvContentForNetwork(net: NETWORK, oracleName: string): string {
-  return `# To fill in the blank values, run: oracles-cli create-entity (select ${net})
+  return `# To fill in the blank values, run: qiforge-cli create-entity (select ${net})
 
 PORT=4000
 ORACLE_NAME=${oracleName}

@@ -1,6 +1,6 @@
-# IXO Oracles CLI - Development Guide
+# QiForge CLI - Development Guide
 
-This guide explains how to develop and extend the IXO Oracles CLI, including how to create new commands and understand the existing architecture.
+This guide explains how to develop and extend the QiForge CLI, including how to create new commands and understand the existing architecture.
 
 ## Table of Contents
 

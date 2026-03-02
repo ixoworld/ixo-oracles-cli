@@ -1,11 +1,11 @@
 {
   "name": "qiforge-cli",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "CLI tool for creating and managing IXO Oracle projects",
   "main": "dist/cli.js",
   "type": "module",
   "bin": {
-    "oracles-cli": "./dist/cli.js"
+    "qiforge-cli": "./dist/cli.js"
   },
   "preferGlobal": true,
   "scripts": {
@@ -25,7 +25,8 @@
     "oracles",
     "ai",
     "matrix",
-    "signx"
+    "signx",
+    "qiforge"
   ],
   "author": "IXO Foundation",
   "license": "ISC",
