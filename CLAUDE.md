@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-IXO Oracles CLI — a Node.js CLI tool for provisioning AI Agent oracle projects on the IXO blockchain. It creates blockchain entities, provisions Matrix accounts for data storage, and scaffolds oracle projects from the ixo-oracles-boilerplate. Requires Node.js 22+ and the IXO Mobile App for SignX authentication.
+IXO Oracles CLI — a Node.js CLI tool for provisioning AI Agent oracle projects on the IXO blockchain. It creates blockchain entities, provisions Matrix accounts for data storage, and scaffolds oracle projects from the qiforge. Requires Node.js 22+ and the IXO Mobile App for SignX authentication.
 
 ## Build & Development Commands
 

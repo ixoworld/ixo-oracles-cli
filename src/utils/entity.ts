@@ -223,6 +223,72 @@ export class CreateEntity {
   }
 
   /**
+   * Update the oracle domain (API URL) services on an existing entity.
+   * Deletes the old #api and #ws services, then adds new ones with the updated URL.
+   */
+  public async updateOracleDomain(entityDid: string, newApiUrl: string): Promise<void> {
+    const walletAddress = this.wallet.wallet?.address;
+
+    if (!this.wallet.signXClient || !this.wallet.wallet || !walletAddress) {
+      throw new Error('SignX client or wallet not found');
+    }
+
+    const deleteApiMsg = {
+      typeUrl: '/ixo.iid.v1beta1.MsgDeleteService',
+      value: ixo.iid.v1beta1.MsgDeleteService.fromPartial({
+        id: entityDid,
+        serviceId: `${entityDid}#api`,
+        signer: walletAddress,
+      }),
+    };
+
+    const deleteWsMsg = {
+      typeUrl: '/ixo.iid.v1beta1.MsgDeleteService',
+      value: ixo.iid.v1beta1.MsgDeleteService.fromPartial({
+        id: entityDid,
+        serviceId: `${entityDid}#ws`,
+        signer: walletAddress,
+      }),
+    };
+
+    const addApiMsg = {
+      typeUrl: '/ixo.iid.v1beta1.MsgAddService',
+      value: ixo.iid.v1beta1.MsgAddService.fromPartial({
+        id: entityDid,
+        serviceData: ixo.iid.v1beta1.Service.fromPartial({
+          id: `${entityDid}#api`,
+          type: 'oracleService',
+          serviceEndpoint: newApiUrl,
+        }),
+        signer: walletAddress,
+      }),
+    };
+
+    const addWsMsg = {
+      typeUrl: '/ixo.iid.v1beta1.MsgAddService',
+      value: ixo.iid.v1beta1.MsgAddService.fromPartial({
+        id: entityDid,
+        serviceData: ixo.iid.v1beta1.Service.fromPartial({
+          id: `${entityDid}#ws`,
+          type: 'wsService',
+          serviceEndpoint: newApiUrl,
+        }),
+        signer: walletAddress,
+      }),
+    };
+
+    log.info(`Sign to update oracle domain for entity ${entityDid}`);
+    const tx = await this.wallet.signXClient.transact(
+      [deleteApiMsg, deleteWsMsg, addApiMsg, addWsMsg],
+      this.wallet.wallet
+    );
+    this.wallet.signXClient.displayTransactionQRCode(JSON.stringify(tx));
+    await this.wallet.signXClient.pollNextTransaction();
+    await this.wallet.signXClient.awaitTransaction();
+    log.success(`Oracle domain updated to ${newApiUrl}`);
+  }
+
+  /**
    * Add a controller to an existing entity
    */
   public async addControllerToEntity(entityDid: string, controllerDid: string): Promise<void> {
