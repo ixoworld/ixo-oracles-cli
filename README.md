@@ -8,7 +8,7 @@ The IXO Oracles CLI automates the complete setup of AI Agent oracle projects. It
 
 - **Blockchain Integration**: Creates entities on the IXO blockchain with linked resources stored in Matrix
 - **Matrix Account Creation**: Sets up Matrix accounts for data storage and communication
-- **Project Initialization**: Clones the [IXO Oracles boilerplate](https://github.com/ixoworld/ixo-oracles-boilerplate) and configures the environment
+- **Project Initialization**: Clones the [IXO Oracles boilerplate](https://github.com/ixoworld/qiforge) and configures the environment
 - **Authentication**: Integrates with SignX for secure blockchain operations
 
 ## Prerequisites
