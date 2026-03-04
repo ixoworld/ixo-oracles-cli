@@ -5,6 +5,7 @@ import { NETWORK } from '@ixo/signx-sdk/types/types/transact';
 import { logoutMatrixClient } from './account/matrix';
 import { registerUserSimplified, SimplifiedRegistrationResult } from './account/simplifiedRegistration';
 import { checkRequiredPin, DOMAIN_INDEXER_URL, RELAYER_NODE_DID } from './common';
+import { prepareEncryptionKey, activateEncryptionKey, buildAddKeyAgreementMsg } from './encryption-key';
 import { publicUpload } from './matrix/upload-to-matrix';
 import { RuntimeConfig } from './runtime-config';
 import { Wallet } from './wallet';
@@ -684,6 +685,48 @@ export class CreateEntity {
       accessToken: oracleAccessToken,
     });
     log.success('Entity created -- config files attached');
+
+    // =================================================================================================
+    // 5.5. GENERATE AND PUBLISH P-256 ENCRYPTION KEY (keyAgreement)
+    // =================================================================================================
+    log.info('Setting up P-256 encryption key for secrets management');
+    try {
+      const encKeyResult = await prepareEncryptionKey({
+        roomId: registerResult.matrixRoomId,
+        accessToken: oracleAccessToken,
+        homeServerUrl: oracleHomeServerUrl,
+        pin: pin as string,
+        oracleEntityDid: did,
+      });
+
+      const addKeyMsg = buildAddKeyAgreementMsg({
+        oracleEntityDid: did,
+        verificationMethodId: encKeyResult.verificationMethodId,
+        publicKeyMultibase: encKeyResult.publicKeyMultibase,
+        signerAddress: this.wallet.wallet!.address,
+      });
+
+      log.info('Sign to add P-256 encryption key (keyAgreement) to the entity');
+      const encKeyTx = await this.wallet.signXClient!.transact([addKeyMsg], this.wallet.wallet!);
+      this.wallet.signXClient!.displayTransactionQRCode(JSON.stringify(encKeyTx));
+      await this.wallet.signXClient!.pollNextTransaction();
+      await this.wallet.signXClient!.awaitTransaction();
+
+      // Mark key as active only after chain confirmation
+      await activateEncryptionKey({
+        roomId: registerResult.matrixRoomId,
+        accessToken: oracleAccessToken,
+        homeServerUrl: oracleHomeServerUrl,
+        verificationMethodId: encKeyResult.verificationMethodId,
+      });
+
+      log.success('P-256 encryption key published to entity DID');
+    } catch (error) {
+      log.warn(
+        `Failed to setup encryption key: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      log.warn('You can set it up later using: oracles-cli setup-encryption-key');
+    }
 
     // =================================================================================================
     // 6. LOGOUT ORACLE's Matrix session (no longer needed)
