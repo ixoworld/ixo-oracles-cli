@@ -6,6 +6,7 @@ import { CreateUserCommand } from './commands/create-user-command';
 import { HelpCommand } from './commands/help.command';
 import { InitCommand } from './commands/init.command';
 import { LogoutCommand } from './commands/logout.commands';
+import { SetupEncryptionKeyCommand } from './commands/setup-encryption-key-command';
 import { SignXLoginCommand } from './commands/signX.commands';
 import { UpdateDomainCommand } from './commands/update-domain-command';
 import { UpdateEntityCommand } from './commands/update-entity-command';
@@ -29,6 +30,7 @@ class CLIManager {
     this.registry.register(new CreateEntityCommand(this.wallet, this.config));
     this.registry.register(new UpdateEntityCommand(this.wallet, this.config));
     this.registry.register(new UpdateDomainCommand(this.wallet, this.config));
+    this.registry.register(new SetupEncryptionKeyCommand(this.wallet, this.config));
     this.registry.register(new CreateUserCommand(this.wallet, this.config));
     this.registry.register(new LogoutCommand(this.wallet));
     this.registry.register(new HelpCommand(this.registry));
