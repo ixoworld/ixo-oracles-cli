@@ -39,7 +39,7 @@ ORACLE_NAME=${values.oracleName}
 NETWORK=${net}
 RPC_URL=${CHAIN_RPC[net]}
 BLOCKSYNC_GRAPHQL_URL=${BLOCKSYNC_GRAPHQL_URL[net]}
-BLOCKSYNC_URI=${BLOCKSYNC_GRAPHQL_URL[net]}
+BLOCKSYNC_URI=${BLOCKSYNC_GRAPHQL_URL[net].replace("/graphql", "")}
 
 # Matrix
 MATRIX_BASE_URL=${values.matrixBaseUrl}
@@ -99,7 +99,7 @@ ORACLE_NAME=${oracleName}
 NETWORK=${net}
 RPC_URL=${CHAIN_RPC[net]}
 BLOCKSYNC_GRAPHQL_URL=${BLOCKSYNC_GRAPHQL_URL[net]}
-BLOCKSYNC_URI=${BLOCKSYNC_GRAPHQL_URL[net]}
+BLOCKSYNC_URI=${BLOCKSYNC_GRAPHQL_URL[net].replace("/graphql", "")}
 
 # Matrix
 MATRIX_BASE_URL=${MatrixHomeServerUrl[net]}
