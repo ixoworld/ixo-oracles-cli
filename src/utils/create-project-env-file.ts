@@ -49,6 +49,7 @@ MATRIX_ORACLE_ADMIN_USER_ID=${values.matrixUserId}
 MATRIX_RECOVERY_PHRASE="${values.matrixRecoveryPhrase}"
 MATRIX_VALUE_PIN=${values.matrixPin}
 MATRIX_ACCOUNT_ROOM_ID="${values.matrixRoomId}"
+MATRIX_STORE_PATH=./matrix-storage
 
 # Blockchain
 SECP_MNEMONIC="${values.mnemonic}"
@@ -108,6 +109,7 @@ MATRIX_ORACLE_ADMIN_USER_ID=
 MATRIX_RECOVERY_PHRASE=
 MATRIX_VALUE_PIN=
 MATRIX_ACCOUNT_ROOM_ID=
+MATRIX_STORE_PATH=./matrix-storage
 
 # Blockchain
 SECP_MNEMONIC=
