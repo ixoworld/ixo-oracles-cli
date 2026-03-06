@@ -1,6 +1,6 @@
 {
   "name": "qiforge-cli",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "CLI tool for creating and managing IXO Oracle projects",
   "main": "dist/cli.js",
   "type": "module",
