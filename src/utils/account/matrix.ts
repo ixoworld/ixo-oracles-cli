@@ -65,6 +65,56 @@ export const mxLogin = async (
   }
 };
 
+/**
+ * Raw HTTP login to Matrix homeserver — bypasses the matrix-js-sdk entirely.
+ * Returns a clean access token not bound to any SDK client or device state,
+ * suitable for use by external bot-sdk / js-sdk consumers.
+ */
+export const mxLoginRaw = async ({
+  homeServerUrl,
+  username,
+  password,
+}: {
+  homeServerUrl: string;
+  username: string;
+  password: string;
+}): Promise<{ accessToken: string; userId: string; deviceId: string }> => {
+  let mxHomeServerUrl = homeServerUrl;
+  let mxUsername = username;
+  const mxIdMatch = mxUsername.match(/^@(.+):(.+\..+)$/);
+  if (mxIdMatch) {
+    mxUsername = mxIdMatch[1] as string;
+    mxHomeServerUrl = mxIdMatch[2] as string;
+    mxHomeServerUrl = await getBaseUrl(mxHomeServerUrl);
+  }
+
+  const response = await fetch(`${mxHomeServerUrl}/_matrix/client/v3/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      type: 'm.login.password',
+      identifier: {
+        type: 'm.id.user',
+        user: normalizeUsername(mxUsername),
+      },
+      password,
+      initial_device_display_name: 'Oracle Service',
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(`Matrix login failed: ${(error as any).error || response.statusText}`);
+  }
+
+  const data = await response.json() as { access_token: string; user_id: string; device_id: string };
+  return {
+    accessToken: data.access_token,
+    userId: data.user_id,
+    deviceId: data.device_id,
+  };
+};
+
 // =================================================================================================
 // NEW API-BASED REGISTRATION
 // =================================================================================================

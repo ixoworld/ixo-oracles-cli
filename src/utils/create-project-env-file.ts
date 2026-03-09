@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { NETWORK } from "@ixo/signx-sdk/types/types/transact";
-import { mxLogin } from "./account/matrix";
+import { mxLoginRaw } from "./account/matrix";
 import {
   BLOCKSYNC_GRAPHQL_URL,
   CHAIN_RPC,
@@ -163,11 +163,12 @@ export const createProjectEnvFile = async (config: RuntimeConfig) => {
   const network = config.getOrThrow("network") as NETWORK;
   const regResult = config.getOrThrow("registerUserResult");
 
-  const freshMx = await mxLogin({
+  // Use raw HTTP login (not matrix-js-sdk) to get a clean access token
+  // that isn't bound to any SDK device state — bot-sdk/js-sdk can use it directly.
+  const freshMx = await mxLoginRaw({
     homeServerUrl: oracleMatrixHomeServerUrl,
     username: regResult.matrixUserId,
     password: regResult.matrixPassword,
-    deviceName: regResult.matrixDeviceName,
   });
   const projectPath = config.getOrThrow("projectPath");
   const envDir = path.join(projectPath, "apps", "app");
