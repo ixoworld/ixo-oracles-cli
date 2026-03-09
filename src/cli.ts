@@ -1,6 +1,7 @@
 import { cancel, intro, isCancel, log, outro, select, spinner } from '@clack/prompts';
 import process from 'node:process';
 import { CommandRegistry } from './commands';
+import { ChatCommand } from './commands/chat.command';
 import { CreateEntityCommand } from './commands/create-entity-command';
 import { CreateUserCommand } from './commands/create-user-command';
 import { HelpCommand } from './commands/help.command';
@@ -32,6 +33,7 @@ class CLIManager {
     this.registry.register(new UpdateDomainCommand(this.wallet, this.config));
     this.registry.register(new SetupEncryptionKeyCommand(this.wallet, this.config));
     this.registry.register(new CreateUserCommand(this.wallet, this.config));
+    this.registry.register(new ChatCommand(this.wallet, this.config));
     this.registry.register(new LogoutCommand(this.wallet));
     this.registry.register(new HelpCommand(this.registry));
   }
@@ -104,6 +106,15 @@ class CLIManager {
       throw new Error(`Unknown command: ${commandName}`);
     }
 
+    // Interactive commands manage their own UI lifecycle
+    if (command.interactive) {
+      const result = await command.execute();
+      if (!result.success && result.error) {
+        log.error(`${command.name} failed: ${result.error}`);
+      }
+      return;
+    }
+
     const s = spinner();
     s.start(`Executing ${command.name}...`);
 
@@ -154,6 +165,13 @@ class CLIManager {
       await this.handleAuthentication();
       this.registerCommands();
       await this.executeCommand('init');
+      return;
+    }
+
+    if (command === '--chat' || command === 'chat') {
+      await this.handleAuthentication();
+      this.registerCommands();
+      await this.executeCommand('chat');
       return;
     }
 

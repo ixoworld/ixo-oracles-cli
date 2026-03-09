@@ -21,11 +21,13 @@ ${commands.map((cmd) => `  ${cmd.name.padEnd(15)} ${cmd.description}`).join('\n'
 
 EXAMPLES:
   qiforge-cli --init          Initialize a new IXO Oracle project
+  qiforge-cli --chat          Chat with your oracle
   qiforge-cli                 Launch interactive menu
   qiforge-cli help            Show this help message
 
 OPTIONS:
   --init                      Initialize a new project (shortcut)
+  --chat                      Start a chat session with your oracle
   --help, -h                  Show help information
 
 For more information, visit: https://www.npmjs.com/package/qiforge-cli

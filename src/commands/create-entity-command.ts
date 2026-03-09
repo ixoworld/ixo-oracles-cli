@@ -12,6 +12,7 @@ import {
   selectNetwork,
 } from '../utils/common';
 import { CreateEntity } from '../utils/entity';
+import { saveOracleConfig } from '../utils/oracle-config';
 import { RuntimeConfig } from '../utils/runtime-config';
 import { Wallet } from '../utils/wallet';
 
@@ -183,6 +184,27 @@ export class CreateEntityCommand implements Command {
     });
 
     p.log.info(`API for the oracle is: ${results.apiUrl} | You can change this after you deploy the oracle`);
+
+    // Save oracle.config.json for the chat command and other tooling
+    const projectPath = (this.config.getValue('projectPath') as string) ?? process.cwd();
+    const currentNetwork = (this.config.getValue('network') as NETWORK) ?? 'devnet';
+    try {
+      saveOracleConfig(projectPath, {
+        oracleName: results.oracleName,
+        orgName: results.profile.orgName,
+        description: results.profile.description,
+        location: results.profile.location,
+        website: results.profile.url ?? '',
+        price: parseInt(results.oraclePrice),
+        apiUrl: results.apiUrl,
+        network: currentNetwork,
+        entityDid: did,
+        logo: results.profile.logo as string,
+      });
+      p.log.success(`Oracle config saved to ${projectPath}/oracle.config.json`);
+    } catch (err) {
+      p.log.warning(`Could not save oracle.config.json: ${err instanceof Error ? err.message : String(err)}`);
+    }
 
     // add to portal
     const portalBaseUrl = PORTAL_URL[(this.config.getValue('network') as NETWORK) ?? 'devnet'];

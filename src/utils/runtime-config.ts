@@ -31,8 +31,8 @@ export class RuntimeConfig {
     this.config[key] = value;
   }
 
-  public getValue(key: keyof Config) {
-    return this.config[key];
+  public getValue<K extends keyof Config>(key: K): Config[K] {
+    return this.config[key] as Config[K];
   }
 
   public getOrThrow<K extends keyof Config>(key: K): Config[K] {
