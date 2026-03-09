@@ -3,6 +3,7 @@ import { CLIResult } from '../types';
 export interface Command {
   name: string;
   description: string;
+  interactive?: boolean;
   execute: (...args: any[]) => Promise<CLIResult>;
 }
 
