@@ -29,11 +29,19 @@ export interface OracleConfig {
 }
 
 /**
- * Saves oracle.config.json to the given project path.
+ * Saves oracle.config.json to both the project root (for CLI commands)
+ * and apps/app/ (for the NestJS app's Docker build where turbo prune
+ * only includes workspace packages).
  */
 export function saveOracleConfig(projectPath: string, data: OracleConfig): void {
-  const configPath = path.join(projectPath, 'oracle.config.json');
-  writeFileSync(configPath, JSON.stringify(data, null, 2), 'utf8');
+  const content = JSON.stringify(data, null, 2);
+  const rootConfigPath = path.join(projectPath, 'oracle.config.json');
+  writeFileSync(rootConfigPath, content, 'utf8');
+
+  const appConfigPath = path.join(projectPath, 'apps', 'app', 'oracle.config.json');
+  if (existsSync(path.dirname(appConfigPath))) {
+    writeFileSync(appConfigPath, content, 'utf8');
+  }
 }
 
 /**

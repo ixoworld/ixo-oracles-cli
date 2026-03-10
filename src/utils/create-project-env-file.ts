@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { NETWORK } from "@ixo/signx-sdk/types/types/transact";
-import { mxLoginRaw } from "./account/matrix";
+import { mxLogin } from "./account/matrix";
 import {
   BLOCKSYNC_GRAPHQL_URL,
   CHAIN_RPC,
@@ -39,7 +39,7 @@ ORACLE_NAME=${values.oracleName}
 NETWORK=${net}
 RPC_URL=${CHAIN_RPC[net]}
 BLOCKSYNC_GRAPHQL_URL=${BLOCKSYNC_GRAPHQL_URL[net]}
-BLOCKSYNC_URI=${BLOCKSYNC_GRAPHQL_URL[net].replace("/graphql", "")}
+BLOCKSYNC_URI=${BLOCKSYNC_GRAPHQL_URL[net].replace('/graphql', '')}
 
 # Matrix
 MATRIX_BASE_URL=${values.matrixBaseUrl}
@@ -68,7 +68,7 @@ MEMORY_MCP_URL=${MEMORY_ENGINE_MCP[net]}
 MEMORY_ENGINE_URL=${MEMORY_ENGINE_API[net]}
 
 # FIRECRWAL -> check the docs https://docs.firecrawl.dev/mcp-server
-FIRECRAWL_MCP_URL=
+FIRECRAWL_MCP_URL=${SANDBOX_API[net]}
 DOMAIN_INDEXER_URL=${DOMAIN_INDEXER_URL[net]}
 SANDBOX_MCP_URL=${SANDBOX_API[net]}
 
@@ -86,6 +86,8 @@ SUBSCRIPTION_URL=${SUBSCRIPTION_API[net]}
 ### BACKUP — save these securely (values above are already set)
 # ORACLE_ADDRESS=${values.oracleAddress}
 # ORACLE_DID=${values.oracleDid}
+
+SKILLS_CAPSULES_BASE_URL="https://capsules.skills.ixo.earth"
 `;
 }
 
@@ -99,7 +101,7 @@ ORACLE_NAME=${oracleName}
 NETWORK=${net}
 RPC_URL=${CHAIN_RPC[net]}
 BLOCKSYNC_GRAPHQL_URL=${BLOCKSYNC_GRAPHQL_URL[net]}
-BLOCKSYNC_URI=${BLOCKSYNC_GRAPHQL_URL[net].replace("/graphql", "")}
+BLOCKSYNC_URI=${BLOCKSYNC_GRAPHQL_URL[net].replace('/graphql', '')}
 
 # Matrix
 MATRIX_BASE_URL=${MatrixHomeServerUrl[net]}
@@ -128,7 +130,7 @@ MEMORY_MCP_URL=${MEMORY_ENGINE_MCP[net]}
 MEMORY_ENGINE_URL=${MEMORY_ENGINE_API[net]}
 
 # FIRECRWAL -> check the docs https://docs.firecrawl.dev/mcp-server
-FIRECRAWL_MCP_URL=
+FIRECRAWL_MCP_URL=${SANDBOX_API[net]}
 DOMAIN_INDEXER_URL=${DOMAIN_INDEXER_URL[net]}
 SANDBOX_MCP_URL=${SANDBOX_API[net]}
 
@@ -163,12 +165,12 @@ export const createProjectEnvFile = async (config: RuntimeConfig) => {
   const network = config.getOrThrow("network") as NETWORK;
   const regResult = config.getOrThrow("registerUserResult");
 
-  // Use raw HTTP login (not matrix-js-sdk) to get a clean access token
-  // that isn't bound to any SDK device state — bot-sdk/js-sdk can use it directly.
-  const freshMx = await mxLoginRaw({
+  // Use matrix-js-sdk login to get a clean access token for the oracle.
+  const freshMx = await mxLogin({
     homeServerUrl: oracleMatrixHomeServerUrl,
     username: regResult.matrixUserId,
     password: regResult.matrixPassword,
+    deviceName: "Oracle Service",
   });
   const projectPath = config.getOrThrow("projectPath");
   const envDir = path.join(projectPath, "apps", "app");
