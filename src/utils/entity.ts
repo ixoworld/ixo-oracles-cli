@@ -41,6 +41,7 @@ interface CreateEntityParams {
     price: number;
   };
   matrixHomeServerUrl: string;
+  relayerNodeDid?: string;
 }
 type Denom =
   | "uixo"
@@ -58,7 +59,10 @@ export class CreateEntity {
     this.wallet = wallet;
   }
 
-  private buildMsgCreateEntity(matrixHomeServerUrl: string) {
+  private buildMsgCreateEntity(
+    matrixHomeServerUrl: string,
+    relayerNodeDid?: string,
+  ) {
     const msg = {
       typeUrl: "/ixo.entity.v1beta1.MsgCreateEntity",
       value: ixo.entity.v1beta1.MsgCreateEntity.fromPartial({
@@ -78,6 +82,7 @@ export class CreateEntity {
         ownerAddress: this.wallet.address!,
         ownerDid: this.wallet.did!,
         relayerNode:
+          relayerNodeDid ??
           RELAYER_NODE_DID[
             (this.config.getValue("network") as NETWORK) ?? "devnet"
           ],
@@ -661,7 +666,10 @@ export class CreateEntity {
     // =================================================================================================
     // 3. BUILD AND BROADCAST MsgCreateEntity
     // =================================================================================================
-    const msg = this.buildMsgCreateEntity(matrixHomeServerUrl);
+    const msg = this.buildMsgCreateEntity(
+      matrixHomeServerUrl,
+      params.relayerNodeDid,
+    );
 
     // Add profile linked resource
     msg.value.linkedResource.push(profileResource);

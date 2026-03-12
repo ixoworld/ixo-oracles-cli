@@ -9,6 +9,7 @@ import {
   checkRequiredURL,
   MatrixHomeServerUrl,
   PORTAL_URL,
+  RELAYER_NODE_DID,
   selectNetwork,
 } from '../utils/common';
 import { CreateEntity } from '../utils/entity';
@@ -139,6 +140,15 @@ export class CreateEntityCommand implements Command {
               return checkRequiredURL(value, 'API URL is required or a valid URL');
             },
           }),
+        relayerNodeDid: () => {
+          const defaultRelayer =
+            RELAYER_NODE_DID[(this.config.getValue('network') as NETWORK) ?? 'devnet'];
+          return p.text({
+            message: 'Relayer node DID (optional, press Enter for default):',
+            initialValue: defaultRelayer,
+            defaultValue: defaultRelayer,
+          });
+        },
       },
       {
         // On Cancel callback that wraps the group
@@ -181,6 +191,7 @@ export class CreateEntityCommand implements Command {
       ],
       parentProtocol: results.parentProtocol,
       matrixHomeServerUrl: results.matrixHomeServerUrl,
+      ...(results.relayerNodeDid ? { relayerNodeDid: results.relayerNodeDid } : {}),
     });
 
     p.log.info(`API for the oracle is: ${results.apiUrl} | You can change this after you deploy the oracle`);
