@@ -29,4 +29,16 @@ module.exports = {
     '@typescript-eslint/require-await': 'warn',
   },
   ignorePatterns: ['dist/', 'node_modules/', '.eslintrc.cjs'],
+  overrides: [
+    {
+      files: ['**/__tests__/**/*.ts', '**/*.test.ts', '**/*.spec.ts'],
+      parserOptions: { project: null },
+      rules: {
+        '@typescript-eslint/no-floating-promises': 'off',
+        '@typescript-eslint/no-misused-promises': 'off',
+        '@typescript-eslint/await-thenable': 'off',
+        '@typescript-eslint/require-await': 'off',
+      },
+    },
+  ],
 };
