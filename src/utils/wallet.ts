@@ -1,9 +1,11 @@
 import { log } from '@clack/prompts';
+import { EncodeObject } from '@cosmjs/proto-signing';
 import { cosmos } from '@ixo/impactxclient-sdk';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { unlink } from 'fs/promises';
 import os from 'os';
 import path from 'path';
+import { getSecpClient, signAndBroadcastWithMnemonic } from './account/utils';
 import { RuntimeConfig } from './runtime-config';
 import { SignXClient } from './signx/signx';
 import { WalletProps } from './signx/types';
@@ -60,9 +62,12 @@ export class Wallet {
 
         this.config.addValue('network', network);
 
-        // set signx client
-        this.setSignXClient(new SignXClient(network));
-        log.success(`Welcome back, ${this.wallet.name}!`);
+        if (this.wallet.mode === 'offline') {
+          log.success(`Welcome back, ${this.wallet.name}! (offline mode)`);
+        } else {
+          this.setSignXClient(new SignXClient(network));
+          log.success(`Welcome back, ${this.wallet.name}!`);
+        }
         log.info(`Network: ${network}`);
       } catch (error) {
         log.warning(`Failed to load wallet file: ${error instanceof Error ? error.message : String(error)}`);
@@ -141,8 +146,53 @@ export class Wallet {
     this.loadWallet();
   }
 
+  /**
+   * Unified sign-and-broadcast: delegates to SignX (QR scan) or offline (local mnemonic).
+   */
+  async signAndBroadcast(
+    messages: readonly EncodeObject[],
+    memo?: string,
+  ) {
+    if (!this.wallet) throw new Error('Wallet not loaded');
+
+    if (this.wallet.mode === 'offline') {
+      return this.offlineSignAndBroadcast(messages, memo);
+    }
+    return this.signxSignAndBroadcast(messages, memo);
+  }
+
+  private async signxSignAndBroadcast(
+    messages: readonly EncodeObject[],
+    _memo?: string,
+  ) {
+    if (!this.signXClient || !this.wallet) {
+      throw new Error('SignX client or wallet not found');
+    }
+    const tx = await this.signXClient.transact([...messages], this.wallet);
+    this.signXClient.displayTransactionQRCode(JSON.stringify(tx));
+    await this.signXClient.pollNextTransaction();
+    return await this.signXClient.awaitTransaction();
+  }
+
+  private async offlineSignAndBroadcast(
+    messages: readonly EncodeObject[],
+    memo?: string,
+  ) {
+    if (!this.wallet?.offlineConfig?.mnemonic) {
+      throw new Error('Offline wallet mnemonic not found');
+    }
+    const offlineSigner = await getSecpClient(this.wallet.offlineConfig.mnemonic);
+    return signAndBroadcastWithMnemonic({
+      offlineSigner,
+      messages: [...messages],
+      memo: memo ?? '',
+      feegrantGranter: '',
+      network: this.wallet.network,
+    });
+  }
+
   async sendTokens(address: string, amount: number) {
-    if (!this.address || !this.signXClient || !this.wallet) {
+    if (!this.address || !this.wallet) {
       throw new Error('Wallet not loaded');
     }
     const sendTokensToUserMsg = {
@@ -158,10 +208,6 @@ export class Wallet {
         ],
       }),
     };
-    const tx = await this.signXClient?.transact([sendTokensToUserMsg], this.wallet);
-    this.signXClient?.displayTransactionQRCode(JSON.stringify(tx));
-    await this.signXClient?.pollNextTransaction();
-    const response = await this.signXClient?.awaitTransaction();
-    return response;
+    return this.signAndBroadcast([sendTokensToUserMsg]);
   }
 }

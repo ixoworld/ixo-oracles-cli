@@ -131,7 +131,7 @@ export const signAndBroadcastWithMnemonic = async ({
   offlineSigner: OfflineSigner;
   messages: any[];
   memo?: string;
-  feegrantGranter: string;
+  feegrantGranter?: string;
   network: NETWORK;
 }) => {
   const url = CHAIN_RPC[network];
@@ -163,6 +163,7 @@ export const signAndBroadcastWithMnemonic = async ({
       `Error when broadcasting tx ${result.transactionHash} at height ${result.height}. Code: ${result.code}; Raw log: ${result.rawLog}`
     );
   }
+  return result;
 };
 
 const calculateTrxGasOptions = (gasUsed: number) => {

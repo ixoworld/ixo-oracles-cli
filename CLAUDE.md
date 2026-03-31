@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-QiForge CLI — a Node.js CLI tool for provisioning AI Agent oracle projects on the IXO blockchain. It creates blockchain entities, provisions Matrix accounts for data storage, and scaffolds oracle projects from the qiforge. Requires Node.js 22+ and the IXO Mobile App for SignX authentication.
+QiForge CLI — a Node.js CLI tool for provisioning AI Agent oracle projects on the IXO blockchain. It creates blockchain entities, provisions Matrix accounts for data storage, and scaffolds oracle projects from the qiforge. Requires Node.js 22+. Supports two authentication modes: SignX (QR code via IXO Mobile App) or offline wallet (local mnemonic + Matrix password).
 
 ## Build & Development Commands
 
@@ -27,7 +27,7 @@ All commands implement `Command` interface (`src/commands/index.ts`) and return 
 
 **Entry flow** (`src/cli.ts` → `CLIManager`):
 1. Parse args: `--init` runs init directly, `--help` shows help, no args → interactive select menu
-2. `handleAuthentication()` checks for persisted wallet (`~/.wallet.json`), prompts SignX login if missing
+2. `handleAuthentication()` checks for persisted wallet (`~/.wallet.json`), prompts login choice (SignX or Offline) if missing
 3. `registerCommands()` instantiates and registers all commands
 4. Route to selected command's `execute()` method
 
@@ -35,9 +35,10 @@ All commands implement `Command` interface (`src/commands/index.ts`) and return 
 
 ### Key Components
 
-- **`Wallet`** (`src/utils/wallet.ts`) — Persists login state to `~/.wallet.json`. Holds `SignXClient` reference. Network is inferred from Matrix userId domain, not stored explicitly.
+- **`Wallet`** (`src/utils/wallet.ts`) — Persists login state to `~/.wallet.json`. Supports two modes via `WalletProps.mode`: `'signx'` (default, QR-based) and `'offline'` (local mnemonic). The `signAndBroadcast(msgs)` method abstracts signing — delegates to SignX QR flow or local `signAndBroadcastWithMnemonic()`. All command code calls `wallet.signAndBroadcast()` instead of touching `signXClient` directly.
+- **`OfflineLoginCommand`** (`src/commands/offline-login.command.ts`) — Login flow for offline mode: prompts for mnemonic, display name, Matrix username/password. Derives wallet via `getSecpClient()`, authenticates Matrix via `mxLoginRaw()`, persists with `mode: 'offline'`.
 - **`RuntimeConfig`** (`src/utils/runtime-config.ts`) — Singleton for transient per-session state (projectPath, network, entityDid, registerUserResult). Use `config.addValue(key, value)` / `config.getOrThrow(key)`.
-- **`SignXClient`** (`src/utils/signx/signx.ts`) — Wraps `@ixo/signx-sdk`. All blockchain transactions from the CLI user require mobile QR scanning. Flow: `transact()` → `displayTransactionQRCode()` → `pollNextTransaction()` → `awaitTransaction()`.
+- **`SignXClient`** (`src/utils/signx/signx.ts`) — Wraps `@ixo/signx-sdk`. Used only in SignX mode. Flow: `transact()` → `displayTransactionQRCode()` → `pollNextTransaction()` → `awaitTransaction()`.
 - **`CreateEntity`** (`src/utils/entity.ts`) — Core service for oracle entity provisioning. Orchestrates profile upload to Matrix, user registration, `MsgCreateEntity` broadcast, domain card/AuthZ/fees linked resource creation.
 - **`registerUserSimplified()`** (`src/utils/account/simplifiedRegistration.ts`) — Creates a complete oracle identity: generates mnemonic → secp wallet → funds account → creates IID on-chain → provisions Matrix account with E2EE → stores encrypted mnemonic as room state.
 
@@ -45,7 +46,7 @@ All commands implement `Command` interface (`src/commands/index.ts`) and return 
 
 - **Matrix as content store**: JSON documents (profile, domain card, configs) are uploaded to Matrix as unencrypted media. The `mxc://` URL becomes the `serviceEndpoint` in blockchain `LinkedResource`. `proof` field is a CID, not a signature.
 - **Two Matrix roles**: The logged-in user's Matrix account (from SignX) handles media uploads. The oracle gets its own dedicated Matrix account provisioned by `registerUserSimplified()`.
-- **SignX for all user transactions**: No local signing for entity/IID messages from the CLI user. Only exception: the oracle's IID is created with `signAndBroadcastWithMnemonic()` using the newly generated mnemonic.
+- **Dual signing modes**: In SignX mode, all user transactions require mobile QR scanning. In offline mode, transactions are signed locally with the stored mnemonic via `signAndBroadcastWithMnemonic()`. The `Wallet.signAndBroadcast()` method abstracts this — commands are mode-agnostic. The oracle's own IID is always created with `signAndBroadcastWithMnemonic()` using its newly generated mnemonic regardless of mode.
 
 ### Conventions
 

@@ -110,8 +110,8 @@ export class CreateEntity {
     msg: ReturnType<typeof this.buildMsgCreateEntity>,
     { oracleAccountAddress }: { oracleAccountAddress: string },
   ) {
-    if (!this.wallet.signXClient || !this.wallet.wallet) {
-      throw new Error("SignX client or wallet not found");
+    if (!this.wallet.wallet) {
+      throw new Error("Wallet not found");
     }
     const memoryEngineByNetwork = {
       devnet: "did:ixo:ixo17w9u5uk4qjyjgeyqfpnp92jwy58faey9vvp3ar",
@@ -262,8 +262,8 @@ export class CreateEntity {
   ): Promise<void> {
     const walletAddress = this.wallet.wallet?.address;
 
-    if (!this.wallet.signXClient || !this.wallet.wallet || !walletAddress) {
-      throw new Error("SignX client or wallet not found");
+    if (!this.wallet.wallet || !walletAddress) {
+      throw new Error("Wallet not found");
     }
 
     const deleteApiMsg = {
@@ -311,13 +311,7 @@ export class CreateEntity {
     };
 
     log.info(`Sign to update oracle domain for entity ${entityDid}`);
-    const tx = await this.wallet.signXClient.transact(
-      [deleteApiMsg, deleteWsMsg, addApiMsg, addWsMsg],
-      this.wallet.wallet,
-    );
-    this.wallet.signXClient.displayTransactionQRCode(JSON.stringify(tx));
-    await this.wallet.signXClient.pollNextTransaction();
-    await this.wallet.signXClient.awaitTransaction();
+    await this.wallet.signAndBroadcast([deleteApiMsg, deleteWsMsg, addApiMsg, addWsMsg]);
     log.success(`Oracle domain updated to ${newApiUrl}`);
   }
 
@@ -330,8 +324,8 @@ export class CreateEntity {
   ): Promise<void> {
     const walletAddress = this.wallet.wallet?.address;
 
-    if (!this.wallet.signXClient || !this.wallet.wallet || !walletAddress) {
-      throw new Error("SignX client or wallet not found");
+    if (!this.wallet.wallet || !walletAddress) {
+      throw new Error("Wallet not found");
     }
 
     const addControllerMsg = {
@@ -344,13 +338,7 @@ export class CreateEntity {
     };
 
     log.info(`Sign to add controller ${controllerDid} to entity ${entityDid}`);
-    const tx = await this.wallet.signXClient.transact(
-      [addControllerMsg],
-      this.wallet.wallet,
-    );
-    this.wallet.signXClient.displayTransactionQRCode(JSON.stringify(tx));
-    await this.wallet.signXClient.pollNextTransaction();
-    await this.wallet.signXClient.awaitTransaction();
+    await this.wallet.signAndBroadcast([addControllerMsg]);
     log.success(`Controller ${controllerDid} added to entity ${entityDid}`);
   }
 
@@ -369,8 +357,8 @@ export class CreateEntity {
   }) {
     const walletAddress = this.wallet.wallet?.address;
 
-    if (!this.wallet.signXClient || !this.wallet.wallet || !walletAddress) {
-      throw new Error("SignX client or wallet not found");
+    if (!this.wallet.wallet || !walletAddress) {
+      throw new Error("Wallet not found");
     }
 
     const resources = await Promise.all([
@@ -411,14 +399,7 @@ export class CreateEntity {
 
     // sign and send the msgs
     log.info("Sign to edit the entity and add the config files");
-    const tx = await this.wallet.signXClient.transact(
-      linkedResourcesMsgs,
-      this.wallet.wallet,
-    );
-    this.wallet.signXClient.displayTransactionQRCode(JSON.stringify(tx));
-    await this.wallet.signXClient.pollNextTransaction();
-    const response = await this.wallet.signXClient.awaitTransaction();
-    return response;
+    return this.wallet.signAndBroadcast(linkedResourcesMsgs);
   }
 
   private async createDomainCard({
@@ -615,8 +596,8 @@ export class CreateEntity {
   }
 
   public async execute(params: CreateEntityParams): Promise<string> {
-    if (!this.wallet.signXClient || !this.wallet.wallet) {
-      throw new Error("SignX client not found");
+    if (!this.wallet.wallet) {
+      throw new Error("Wallet not found");
     }
 
     const { matrixHomeServerUrl } = params;
@@ -688,15 +669,7 @@ export class CreateEntity {
     });
 
     log.info("Sign this transaction to create the entity");
-    const tx = await this.wallet.signXClient.transact(
-      [msg],
-      this.wallet.wallet,
-    );
-    this.wallet.signXClient.displayTransactionQRCode(JSON.stringify(tx));
-    await this.wallet.signXClient.pollNextTransaction();
-
-    // Wait for transaction completion
-    const response = await this.wallet.signXClient.awaitTransaction();
+    const response = await this.wallet.signAndBroadcast([msg]);
     log.success("Entity created -- wait to attach the required config files");
 
     // upload resources
@@ -737,15 +710,7 @@ export class CreateEntity {
         }),
       };
       log.info("Sign to add domain card to the entity");
-      const domainCardTx = await this.wallet.signXClient.transact(
-        [addDomainCardMsg],
-        this.wallet.wallet,
-      );
-      this.wallet.signXClient.displayTransactionQRCode(
-        JSON.stringify(domainCardTx),
-      );
-      await this.wallet.signXClient.pollNextTransaction();
-      await this.wallet.signXClient.awaitTransaction();
+      await this.wallet.signAndBroadcast([addDomainCardMsg]);
       log.success("Domain card added to entity");
     }
 
@@ -783,15 +748,7 @@ export class CreateEntity {
       });
 
       log.info("Sign to add P-256 encryption key (keyAgreement) to the entity");
-      const encKeyTx = await this.wallet.signXClient!.transact(
-        [addKeyMsg],
-        this.wallet.wallet!,
-      );
-      this.wallet.signXClient!.displayTransactionQRCode(
-        JSON.stringify(encKeyTx),
-      );
-      await this.wallet.signXClient!.pollNextTransaction();
-      await this.wallet.signXClient!.awaitTransaction();
+      await this.wallet.signAndBroadcast([addKeyMsg]);
 
       // Mark key as active only after chain confirmation
       await activateEncryptionKey({

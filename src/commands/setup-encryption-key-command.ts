@@ -87,9 +87,9 @@ export class SetupEncryptionKeyCommand implements Command {
     const homeServerUrl = deriveHomeServerUrl(results.matrixRoomId);
 
     try {
-      if (!this.wallet.signXClient || !this.wallet.wallet?.address) {
+      if (!this.wallet.wallet?.address) {
         throw new Error(
-          'Wallet/SignX client not available. Please login first.',
+          'Wallet not available. Please login first.',
         );
       }
 
@@ -133,13 +133,7 @@ export class SetupEncryptionKeyCommand implements Command {
       p.log.info(
         'Sign to add P-256 encryption key (keyAgreement) to the entity',
       );
-      const tx = await this.wallet.signXClient.transact(
-        [addKeyMsg],
-        this.wallet.wallet,
-      );
-      this.wallet.signXClient.displayTransactionQRCode(JSON.stringify(tx));
-      await this.wallet.signXClient.pollNextTransaction();
-      await this.wallet.signXClient.awaitTransaction();
+      await this.wallet.signAndBroadcast([addKeyMsg]);
 
       // 4. Mark key as active only after chain confirmation
       await activateEncryptionKey({

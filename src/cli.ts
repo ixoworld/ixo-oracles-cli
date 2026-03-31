@@ -8,6 +8,7 @@ import { HelpCommand } from './commands/help.command';
 import { InitCommand } from './commands/init.command';
 import { LogoutCommand } from './commands/logout.commands';
 import { SetupEncryptionKeyCommand } from './commands/setup-encryption-key-command';
+import { OfflineLoginCommand } from './commands/offline-login.command';
 import { SignXLoginCommand } from './commands/signX.commands';
 import { UpdateDomainCommand } from './commands/update-domain-command';
 import { UpdateEntityCommand } from './commands/update-entity-command';
@@ -67,9 +68,10 @@ class CLIManager {
   private async handleAuthentication(): Promise<void> {
     if (!this.wallet.checkWalletExists()) {
       const login = await select({
-        message: 'Login with SignX',
+        message: 'How would you like to authenticate?',
         options: [
-          { value: 'login', label: 'Login' },
+          { value: 'signx', label: 'SignX Wallet (QR code with mobile app)' },
+          { value: 'offline', label: 'Offline Wallet (local mnemonic)' },
           { value: 'exit', label: 'Exit' },
         ],
       });
@@ -80,9 +82,17 @@ class CLIManager {
       }
 
       switch (String(login)) {
-        case 'login': {
+        case 'signx': {
           const loginCommand = new SignXLoginCommand(this.wallet, this.config);
           const result = await loginCommand.execute();
+          if (result.success) {
+            log.success('Login successful');
+          }
+          return;
+        }
+        case 'offline': {
+          const offlineCommand = new OfflineLoginCommand(this.wallet, this.config);
+          const result = await offlineCommand.execute();
           if (result.success) {
             log.success('Login successful');
           }
@@ -133,9 +143,12 @@ class CLIManager {
 
   private async interactiveMode(): Promise<void> {
     intro('IXO CLI');
-    log.warn('Keep your IXO Mobile App open while running the CLI; So u do not interrupt the signX session');
 
     await this.handleAuthentication();
+
+    if (this.wallet.wallet?.mode !== 'offline') {
+      log.warn('Keep your IXO Mobile App open while running the CLI; So u do not interrupt the signX session');
+    }
     this.registerCommands();
 
     const action = await select({
