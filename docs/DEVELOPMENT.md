@@ -17,11 +17,13 @@ The CLI is built with a modular command system using TypeScript. Here's the high
 
 ```
 src/
-├── cli.ts                    # Main CLI entry point
+├── cli.ts                    # Main CLI entry point (CLIManager)
 ├── commands/                 # Command implementations
 │   ├── index.ts             # Command interface and registry
 │   ├── init.command.ts      # Project initialization
 │   ├── create-entity-command.ts  # Blockchain entity creation
+│   ├── offline-login.command.ts  # Offline wallet authentication
+│   ├── chat.command.ts      # Chat with oracle
 │   ├── signX.commands.ts    # SignX authentication
 │   └── logout.commands.ts   # Logout functionality
 ├── types/                   # TypeScript interfaces
@@ -29,6 +31,8 @@ src/
 ├── utils/                   # Shared utilities
 │   ├── wallet.ts           # Wallet management
 │   ├── runtime-config.ts   # Configuration management
+│   ├── oracle-config.ts    # oracle.config.json save/load
+│   ├── cli-flags.ts        # CLI flag parser (--key value)
 │   ├── errors.ts           # Error handling
 │   └── ...                 # Other utilities
 └── __tests__/              # Tests
@@ -232,24 +236,39 @@ const error = checkRequiredNumber(parseInt(value), 'Must be a number');
 ### 1. InitCommand (`init.command.ts`)
 
 - **Purpose**: Initializes new IXO Oracle projects
-- **Dependencies**: `RuntimeConfig`, `Wallet`, `CreateEntityCommand`
+- **Dependencies**: `RuntimeConfig`, `Wallet`, `CreateEntityCommand`, `parseCliFlags`
 - **Key Features**:
   - Project directory creation
   - Repository cloning
-  - Entity creation
+  - Entity creation (delegates to `CreateEntityCommand`)
   - Environment file generation
+  - Full non-interactive mode via `--no-interactive` with `--name`, `--path`, `--repo`, `--force` flags
 
 ### 2. CreateEntityCommand (`create-entity-command.ts`)
 
 - **Purpose**: Creates blockchain entities with linked resources
-- **Dependencies**: `Wallet`, `RuntimeConfig`, `CreateEntity` utility
+- **Dependencies**: `Wallet`, `RuntimeConfig`, `CreateEntity` utility, `parseCliFlags`
 - **Key Features**:
   - Oracle profile creation
   - Linked resources setup
   - Matrix integration
-  - Entity page configuration
+  - LLM model selection (interactive or via `--model` flag)
+  - Prompt configuration (opening, style, capabilities)
+  - MCP server configuration
+  - Saves `oracle.config.json` after entity creation
+  - Full non-interactive mode via `--no-interactive` with CLI flags
 
-### 3. SignXLoginCommand (`signX.commands.ts`)
+### 3. OfflineLoginCommand (`offline-login.command.ts`)
+
+- **Purpose**: Login with a local mnemonic (offline wallet mode)
+- **Dependencies**: `RuntimeConfig`, `Wallet`, `parseCliFlags`
+- **Key Features**:
+  - Derives wallet from mnemonic via `getSecpClient()`
+  - Authenticates Matrix via `mxLoginRaw()`
+  - Auto-detects display name from Matrix profile
+  - Supports CLI flags for non-interactive use: `--network`, `--mnemonic`, `--matrixPassword`, `--name`
+
+### 4. SignXLoginCommand (`signX.commands.ts`)
 
 - **Purpose**: Handles SignX authentication
 - **Dependencies**: `Wallet`, `RuntimeConfig`, `SignXClient`
@@ -258,13 +277,44 @@ const error = checkRequiredNumber(parseInt(value), 'Must be a number');
   - Mobile app integration
   - Wallet storage
 
-### 4. LogoutCommand (`logout.commands.ts`)
+### 5. LogoutCommand (`logout.commands.ts`)
 
 - **Purpose**: Handles user logout
 - **Dependencies**: `Wallet`
 - **Key Features**:
   - Confirmation prompt
   - Wallet clearing
+
+## CLI Flag Parser
+
+The `parseCliFlags()` utility (`src/utils/cli-flags.ts`) extracts flags from `process.argv`. Supports:
+
+- `--flag value` (space-separated)
+- `--flag=value` (equals-separated)
+- `--boolean-flag` (sets to `"true"`)
+
+Commands use this to support non-interactive mode. Pattern:
+
+```typescript
+import { parseCliFlags } from '../utils/cli-flags';
+
+const flags = parseCliFlags();
+const noInteractive = flags['no-interactive'] === 'true';
+
+// Use flag value or fall back to interactive prompt
+const name = flags.name ?? await p.text({ message: 'Enter name:' });
+```
+
+## Oracle Config (`oracle.config.json`)
+
+The `saveOracleConfig()` and `loadOracleConfig()` functions in `src/utils/oracle-config.ts` manage the oracle configuration file. It is written to both the project root and `apps/app/` (for Docker builds).
+
+Schema includes extended fields for AI configuration:
+
+- `prompt` — opening message, communication style, capabilities
+- `model` — LLM model identifier (e.g. `moonshotai/kimi-k2.5`)
+- `skills` / `customSkills` — skill arrays
+- `mcpServers` — array of `{ url, name? }` for MCP server integration
 
 ## Testing Commands
 

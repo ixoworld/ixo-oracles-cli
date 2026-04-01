@@ -2,6 +2,18 @@ import { existsSync, readFileSync, writeFileSync } from 'fs';
 import path from 'path';
 import { z } from 'zod';
 
+const McpServerSchema = z.object({
+  name: z.string(),
+  url: z.string(),
+  description: z.string().optional(),
+});
+
+const PromptConfigSchema = z.object({
+  opening: z.string().optional(),
+  communicationStyle: z.string().optional(),
+  capabilities: z.string().optional(),
+});
+
 const OracleConfigSchema = z.object({
   oracleName: z.string(),
   orgName: z.string(),
@@ -13,7 +25,25 @@ const OracleConfigSchema = z.object({
   network: z.string(),
   entityDid: z.string().regex(/^did:ixo:entity:[a-f0-9]{32}$/),
   logo: z.string(),
+  // A4: Extended fields
+  prompt: PromptConfigSchema.optional(),
+  model: z.string().optional(),
+  skills: z.array(z.string()).optional(),
+  customSkills: z.array(z.string()).optional(),
+  mcpServers: z.array(McpServerSchema).optional(),
 });
+
+export interface McpServerConfig {
+  name: string;
+  url: string;
+  description?: string;
+}
+
+export interface PromptConfig {
+  opening?: string;
+  communicationStyle?: string;
+  capabilities?: string;
+}
 
 export interface OracleConfig {
   oracleName: string;
@@ -26,6 +56,12 @@ export interface OracleConfig {
   network: string;
   entityDid: string;
   logo: string;
+  // Extended fields
+  prompt?: PromptConfig;
+  model?: string;
+  skills?: string[];
+  customSkills?: string[];
+  mcpServers?: McpServerConfig[];
 }
 
 /**
@@ -58,7 +94,7 @@ export function loadOracleConfig(projectPath?: string): OracleConfig | undefined
     const raw = readFileSync(configPath, 'utf8');
     const parsed = OracleConfigSchema.safeParse(JSON.parse(raw));
     if (!parsed.success) return undefined;
-    return parsed.data;
+    return parsed.data as OracleConfig;
   } catch {
     return undefined;
   }

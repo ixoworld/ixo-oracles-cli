@@ -7,8 +7,8 @@ import { CreateUserCommand } from './commands/create-user-command';
 import { HelpCommand } from './commands/help.command';
 import { InitCommand } from './commands/init.command';
 import { LogoutCommand } from './commands/logout.commands';
-import { SetupEncryptionKeyCommand } from './commands/setup-encryption-key-command';
 import { OfflineLoginCommand } from './commands/offline-login.command';
+import { SetupEncryptionKeyCommand } from './commands/setup-encryption-key-command';
 import { SignXLoginCommand } from './commands/signX.commands';
 import { UpdateDomainCommand } from './commands/update-domain-command';
 import { UpdateEntityCommand } from './commands/update-entity-command';
@@ -39,7 +39,7 @@ class CLIManager {
     this.registry.register(new HelpCommand(this.registry));
   }
 
-  private async showHelp(): Promise<void> {
+  private addFakeWallet() {
     // add fake wallet to the config
     this.wallet.setWallet({
       address: '0x0000000000000000000000000000000000000000',
@@ -57,6 +57,9 @@ class CLIManager {
         roomId: '',
       },
     });
+  }
+  private async showHelp(): Promise<void> {
+    this.addFakeWallet();
     this.registerCommands();
     const helpCommand = new HelpCommand(this.registry);
     const result = await helpCommand.execute();
@@ -65,16 +68,18 @@ class CLIManager {
     }
   }
 
-  private async handleAuthentication(): Promise<void> {
+  private async handleAuthentication(_login?: 'SignX' | 'offline'): Promise<void> {
     if (!this.wallet.checkWalletExists()) {
-      const login = await select({
-        message: 'How would you like to authenticate?',
-        options: [
-          { value: 'signx', label: 'SignX Wallet (QR code with mobile app)' },
-          { value: 'offline', label: 'Offline Wallet (local mnemonic)' },
-          { value: 'exit', label: 'Exit' },
-        ],
-      });
+      const login =
+        _login ??
+        (await select({
+          message: 'How would you like to authenticate?',
+          options: [
+            { value: 'signx', label: 'SignX Wallet (QR code with mobile app)' },
+            { value: 'offline', label: 'Offline Wallet (local mnemonic)' },
+            { value: 'exit', label: 'Exit' },
+          ],
+        }));
 
       if (isCancel(login)) {
         cancel('Operation cancelled.');
@@ -91,7 +96,7 @@ class CLIManager {
           return;
         }
         case 'offline': {
-          const offlineCommand = new OfflineLoginCommand(this.wallet, this.config);
+          const offlineCommand = new OfflineLoginCommand(this.config, this.wallet);
           const result = await offlineCommand.execute();
           if (result.success) {
             log.success('Login successful');
@@ -194,7 +199,14 @@ class CLIManager {
       return;
     }
 
-    // Handle direct command execution
+    // Login commands skip authentication (they ARE the authentication)
+    if (command === 'offline-login') {
+      await this.handleAuthentication('offline');
+      this.registerCommands();
+      return;
+    }
+
+    // All other commands require authentication first
     await this.handleAuthentication();
     this.registerCommands();
     await this.executeCommand(command);

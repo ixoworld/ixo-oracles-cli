@@ -26,21 +26,25 @@ The binary name is `qiforge-cli`. Build produces a single `dist/cli.js` with she
 All commands implement `Command` interface (`src/commands/index.ts`) and return `CLIResult { success, data?, error? }`. Commands are registered in `CLIManager.registerCommands()` in `src/cli.ts`.
 
 **Entry flow** (`src/cli.ts` → `CLIManager`):
-1. Parse args: `--init` runs init directly, `--help` shows help, no args → interactive select menu
+1. Parse args: `--init` runs init, `--chat`/`chat` runs chat, `offline-login` triggers offline auth, `--help` shows help, no args → interactive select menu
 2. `handleAuthentication()` checks for persisted wallet (`~/.wallet.json`), prompts login choice (SignX or Offline) if missing
 3. `registerCommands()` instantiates and registers all commands
 4. Route to selected command's `execute()` method
+
+**Non-interactive mode**: Commands support `--no-interactive` flag + CLI flags via `parseCliFlags()` (`src/utils/cli-flags.ts`) for CI/CD pipelines. Flags use `--key value` or `--key=value` syntax.
 
 **Adding a new command**: Create `src/commands/your-command.command.ts` implementing `Command`, register it in `CLIManager.registerCommands()`. See `docs/DEVELOPMENT.md` for detailed guide.
 
 ### Key Components
 
 - **`Wallet`** (`src/utils/wallet.ts`) — Persists login state to `~/.wallet.json`. Supports two modes via `WalletProps.mode`: `'signx'` (default, QR-based) and `'offline'` (local mnemonic). The `signAndBroadcast(msgs)` method abstracts signing — delegates to SignX QR flow or local `signAndBroadcastWithMnemonic()`. All command code calls `wallet.signAndBroadcast()` instead of touching `signXClient` directly.
-- **`OfflineLoginCommand`** (`src/commands/offline-login.command.ts`) — Login flow for offline mode: prompts for mnemonic, display name, Matrix username/password. Derives wallet via `getSecpClient()`, authenticates Matrix via `mxLoginRaw()`, persists with `mode: 'offline'`.
+- **`OfflineLoginCommand`** (`src/commands/offline-login.command.ts`) — Login flow for offline mode: prompts for mnemonic, display name, Matrix username/password. Derives wallet via `getSecpClient()`, authenticates Matrix via `mxLoginRaw()`, persists with `mode: 'offline'`. Supports CLI flags (`--mnemonic`, `--matrixPassword`, `--network`, `--name`) for non-interactive use.
 - **`RuntimeConfig`** (`src/utils/runtime-config.ts`) — Singleton for transient per-session state (projectPath, network, entityDid, registerUserResult). Use `config.addValue(key, value)` / `config.getOrThrow(key)`.
 - **`SignXClient`** (`src/utils/signx/signx.ts`) — Wraps `@ixo/signx-sdk`. Used only in SignX mode. Flow: `transact()` → `displayTransactionQRCode()` → `pollNextTransaction()` → `awaitTransaction()`.
 - **`CreateEntity`** (`src/utils/entity.ts`) — Core service for oracle entity provisioning. Orchestrates profile upload to Matrix, user registration, `MsgCreateEntity` broadcast, domain card/AuthZ/fees linked resource creation.
 - **`registerUserSimplified()`** (`src/utils/account/simplifiedRegistration.ts`) — Creates a complete oracle identity: generates mnemonic → secp wallet → funds account → creates IID on-chain → provisions Matrix account with E2EE → stores encrypted mnemonic as room state.
+- **`parseCliFlags()`** (`src/utils/cli-flags.ts`) — Simple flag parser for `process.argv`. Supports `--key value`, `--key=value`, and `--boolean-flag` syntax. Used by commands to support non-interactive mode.
+- **`saveOracleConfig()` / `loadOracleConfig()`** (`src/utils/oracle-config.ts`) — Saves/loads `oracle.config.json` with oracle metadata, LLM model, prompt config, skills, and MCP servers. Written to both project root and `apps/app/` for Docker builds.
 
 ### External Dependencies Pattern
 
@@ -51,7 +55,9 @@ All commands implement `Command` interface (`src/commands/index.ts`) and return 
 ### Conventions
 
 - Interactive prompts use `@clack/prompts` (`p.group()`, `p.text()`, `p.select()`, `p.spinner()`)
-- Input validation uses Zod via helpers in `src/utils/common.ts` (`checkRequiredString`, `checkRequiredURL`, `checkRequiredNumber`, `checkIsEntityDid`) — these return `string | undefined` to match clack's validation API
+- Commands support non-interactive mode via `parseCliFlags()` — check `flags['no-interactive'] === 'true'` then use flag values with fallback to prompts
+- Input validation uses Zod via helpers in `src/utils/common.ts` (`checkRequiredString`, `checkRequiredURL`, `checkRequiredNumber`, `checkIsEntityDid`, `checkRequiredPin`) — these return `string | undefined` to match clack's validation API
 - Network URLs (RPC, Matrix, SignX, bots) are defined as constants in `src/utils/common.ts` keyed by `NETWORK` type (`devnet | testnet | mainnet`)
 - Error handling uses custom classes in `src/utils/errors.ts` with `handleError()` utility
 - Constructor injection for `Wallet` and `RuntimeConfig` into commands
+- `oracle.config.json` stores oracle metadata including AI config (model, prompts, skills, MCP servers) — validated with Zod schema in `src/utils/oracle-config.ts`

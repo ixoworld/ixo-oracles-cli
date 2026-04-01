@@ -1,5 +1,6 @@
 import { Bip39, EnglishMnemonic, Secp256k1, sha256, Slip10, Slip10Curve, stringToPath } from '@cosmjs/crypto';
 import { AccountData, DirectSecp256k1HdWallet, OfflineSigner } from '@cosmjs/proto-signing';
+import type { DeliverTxResponse } from '@cosmjs/stargate';
 import { createQueryClient, createSigningClient, customMessages, ixo, utils } from '@ixo/impactxclient-sdk';
 import { Service } from '@ixo/impactxclient-sdk/types/codegen/ixo/iid/v1beta1/types';
 import { NETWORK } from '@ixo/signx-sdk/types/types/transact';
@@ -133,7 +134,7 @@ export const signAndBroadcastWithMnemonic = async ({
   memo?: string;
   feegrantGranter?: string;
   network: NETWORK;
-}) => {
+}): Promise<DeliverTxResponse> => {
   const url = CHAIN_RPC[network];
   if (!url) {
     throw new Error(`Invalid network: ${network}`);
@@ -156,7 +157,7 @@ export const signAndBroadcastWithMnemonic = async ({
     gas: String(Math.round(gas)),
     granter: feegrantGranter,
   };
-  const result = await signingClient.signAndBroadcast(address, messages, fee, memo, undefined);
+  const result = await signingClient.signAndBroadcast(address, messages, fee as any, memo, undefined);
   const isDeliverTxFailure = !!result.code;
   if (isDeliverTxFailure) {
     throw new Error(
