@@ -42,6 +42,7 @@ interface CreateEntityParams {
   };
   matrixHomeServerUrl: string;
   relayerNodeDid?: string;
+  pin?: string;
 }
 type Denom =
   | "uixo"
@@ -606,16 +607,22 @@ export class CreateEntity {
     // 1. REGISTER ORACLE FIRST — we need oracle's credentials for uploads
     // =================================================================================================
     log.info("Creating Oracle Wallet and Matrix Account");
-    const pin = await text({
-      message: "Enter a 6-digit PIN to secure your Matrix Vault:",
-      placeholder: "123456",
-      validate(value) {
-        return checkRequiredPin(value);
-      },
-    });
-    if (isCancel(pin)) {
-      log.error("User cancelled");
-      process.exit(1);
+    let pin: string;
+    if (params.pin) {
+      pin = params.pin;
+    } else {
+      const pinInput = await text({
+        message: "Enter a 6-digit PIN to secure your Matrix Vault:",
+        placeholder: "123456",
+        validate(value) {
+          return checkRequiredPin(value);
+        },
+      });
+      if (isCancel(pinInput)) {
+        log.error("User cancelled");
+        process.exit(1);
+      }
+      pin = pinInput as string;
     }
     const registerResult = await registerUserSimplified(
       {

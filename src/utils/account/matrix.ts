@@ -78,7 +78,7 @@ export const mxLoginRaw = async ({
   homeServerUrl: string;
   username: string;
   password: string;
-}): Promise<{ accessToken: string; userId: string; deviceId: string }> => {
+}): Promise<{ accessToken: string; userId: string; deviceId: string; displayName?: string }> => {
   let mxHomeServerUrl = homeServerUrl;
   let mxUsername = username;
   const mxIdMatch = mxUsername.match(/^@(.+):(.+\..+)$/);
@@ -107,12 +107,32 @@ export const mxLoginRaw = async ({
     throw new Error(`Matrix login failed: ${(error as any).error || response.statusText}`);
   }
 
-  const data = await response.json() as { access_token: string; user_id: string; device_id: string };
-  return {
+  const data = (await response.json()) as { access_token: string; user_id: string; device_id: string };
+
+  // Fetch display name from profile after login
+  let displayName: string | undefined = undefined;
+  try {
+    const profileRes = await fetch(
+      `${mxHomeServerUrl}/_matrix/client/v3/profile/${encodeURIComponent(data.user_id)}/displayname`,
+      { headers: { Authorization: `Bearer ${data.access_token}` } }
+    );
+    if (profileRes.ok) {
+      const profile = (await profileRes.json()) as { displayname?: string };
+      displayName = profile.displayname;
+    }
+  } catch {
+    // Profile fetch is best-effort, don't fail login
+  }
+
+  const result: { accessToken: string; userId: string; deviceId: string; displayName?: string } = {
     accessToken: data.access_token,
     userId: data.user_id,
     deviceId: data.device_id,
   };
+  if (displayName) {
+    result.displayName = displayName;
+  }
+  return result;
 };
 
 // =================================================================================================
@@ -474,7 +494,7 @@ export async function logoutMatrixClient({
   if (client) {
     client.stopClient();
     await client.logout().catch(console.error);
-    client.clearStores();
+    await client.clearStores();
   }
 }
 

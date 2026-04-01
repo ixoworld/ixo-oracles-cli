@@ -8,6 +8,7 @@ import { createProjectEnvFile } from '../utils/create-project-env-file';
 import { RuntimeConfig } from '../utils/runtime-config';
 import { Wallet } from '../utils/wallet';
 import { CreateEntityCommand } from './create-entity-command';
+import { parseCliFlags } from '../utils/cli-flags';
 
 export class InitCommand implements Command {
   name = 'init';
@@ -154,8 +155,6 @@ export class InitCommand implements Command {
         rmSync(projectPath, { recursive: true, force: true });
       }
 
-      // Create directory if it doesn't exist
-
       await git.clone(repo, projectPath);
 
       // Clean repo and create new git
@@ -168,16 +167,19 @@ export class InitCommand implements Command {
 
       cloneSpinner.stop('Repository cloned successfully');
 
+      // Create entity + env — CreateEntityCommand reads flags from process.argv too
       p.log.info('Creating Oracle Entity and Matrix Account');
       const command = new CreateEntityCommand(this.wallet, this.config);
       const result = await command.execute();
       if (result.success) {
         p.log.info('Oracle Entity and Matrix Account created successfully');
       } else {
-        p.log.error('Failed to create Oracle Entity and Matrix Account');
+        p.log.error(`Failed to create Oracle Entity and Matrix Account: ${result.error}`);
+        throw new Error(result.error ?? 'Entity creation failed');
       }
 
       await createProjectEnvFile(this.config);
+
       // Show success message with next steps
       p.log.success(
         `\n✅ IXO project created successfully!\n\n` +
@@ -197,29 +199,45 @@ export class InitCommand implements Command {
 
   async execute(): Promise<CLIResult> {
     try {
-      // Get project input (path and/or name)
-      const { projectPath, projectName } = await this.getProjectInput();
+      const flags = parseCliFlags();
+      const noInteractive = flags['no-interactive'] === 'true';
 
-      // Confirm project creation
-      const shouldProceed = await this.confirmProjectCreation(projectPath, projectName);
+      let projectPath: string;
+      let projectName: string;
+      let repo: string;
 
-      if (!shouldProceed) {
-        return { success: false, data: 'Project creation cancelled' };
+      if (noInteractive && flags.name) {
+        // Non-interactive: use flags directly, no prompts
+        projectName = flags.name;
+        projectPath = flags.path ?? path.join(process.cwd(), projectName);
+        repo = flags.repo ?? 'git@github.com:ixoworld/qiforge.git';
+      } else {
+        // Interactive: prompt as usual
+        const input = await this.getProjectInput();
+        projectPath = input.projectPath;
+        projectName = input.projectName;
+
+        const shouldProceed = await this.confirmProjectCreation(projectPath, projectName);
+        if (!shouldProceed) {
+          return { success: false, data: 'Project creation cancelled' };
+        }
+
+        repo = await this.selectRepo() as string;
       }
 
-      // Store in config
+      // Store in config so create-entity and env-file can use them
       this.config.addValue('projectPath', projectPath);
       this.config.addValue('projectName', projectName);
-
-      // Select repository template
-      const repo = await this.selectRepo();
       this.config.addValue('repo', repo);
 
-      // Check if we need to overwrite
-      const shouldOverwrite = existsSync(projectPath);
+      // Check if we need to overwrite — in non-interactive mode require --force
+      const dirExists = existsSync(projectPath);
+      if (dirExists && noInteractive && flags.force !== 'true') {
+        return { success: false, error: `Directory "${projectPath}" already exists. Use --force to overwrite.` };
+      }
 
-      // Clone the repository
-      await this.cloneRepo(repo, projectPath, shouldOverwrite);
+      // Clone the repository, create entity, write env
+      await this.cloneRepo(repo, projectPath, dirExists);
 
       return {
         success: true,
