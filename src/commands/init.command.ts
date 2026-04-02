@@ -111,7 +111,7 @@ export class InitCommand implements Command {
       message: 'Select a template to clone',
       options: [
         {
-          value: 'git@github.com:ixoworld/qiforge.git',
+          value: 'https://github.com/ixoworld/qiforge.git',
           label: 'IXO Oracles (Default)',
         },
         {
