@@ -2,6 +2,7 @@ import { cancel, intro, isCancel, log, outro, select, spinner } from '@clack/pro
 import process from 'node:process';
 import { CommandRegistry } from './commands';
 import { ChatCommand } from './commands/chat.command';
+import { CreateComposioKeyCommand } from './commands/create-composio-key.command';
 import { CreateEntityCommand } from './commands/create-entity-command';
 import { CreateUserCommand } from './commands/create-user-command';
 import { HelpCommand } from './commands/help.command';
@@ -35,6 +36,7 @@ class CLIManager {
     this.registry.register(new SetupEncryptionKeyCommand(this.wallet, this.config));
     this.registry.register(new CreateUserCommand(this.wallet, this.config));
     this.registry.register(new ChatCommand(this.wallet, this.config));
+    this.registry.register(new CreateComposioKeyCommand(this.wallet));
     this.registry.register(new LogoutCommand(this.wallet));
     this.registry.register(new HelpCommand(this.registry));
   }

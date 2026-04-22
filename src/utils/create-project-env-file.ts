@@ -1,7 +1,8 @@
-import fs from "fs";
-import path from "path";
-import { NETWORK } from "@ixo/signx-sdk/types/types/transact";
-import { mxLogin } from "./account/matrix";
+import { NETWORK } from '@ixo/signx-sdk/types/types/transact';
+import fs from 'fs';
+import path from 'path';
+import { mxLogin } from './account/matrix';
+import { getSecpClient, signAndBroadcastWithMnemonic } from './account/utils';
 import {
   BLOCKSYNC_GRAPHQL_URL,
   CHAIN_RPC,
@@ -11,8 +12,9 @@ import {
   MEMORY_ENGINE_MCP,
   SANDBOX_API,
   SUBSCRIPTION_API,
-} from "./common";
-import { RuntimeConfig } from "./runtime-config";
+} from './common';
+import { COMPOSIO_BASE_URL, createComposioApiKey, fetchOrCreateEdMnemonic, SignAndBroadcastFn } from './composio';
+import { RuntimeConfig } from './runtime-config';
 
 interface EnvValues {
   oracleName: string;
@@ -28,6 +30,7 @@ interface EnvValues {
   entityDid: string;
   oracleAddress: string;
   oracleDid: string;
+  composioApiKey: string;
 }
 
 function buildEnvContent(net: NETWORK, values: EnvValues): string {
@@ -88,6 +91,10 @@ SUBSCRIPTION_URL=${SUBSCRIPTION_API[net]}
 # ORACLE_DID=${values.oracleDid}
 
 SKILLS_CAPSULES_BASE_URL="https://capsules.skills.ixo.earth"
+
+# Composio
+COMPOSIO_BASE_URL=${COMPOSIO_BASE_URL}
+COMPOSIO_API_KEY=${values.composioApiKey}
 `;
 }
 
@@ -151,38 +158,71 @@ LANGSMITH_PROJECT="${oracleName}_${net}"
 function writeEnvFile(filePath: string, content: string): void {
   try {
     fs.writeFileSync(filePath, content);
-    console.log("✅ env file created successfully at:", filePath);
+    console.log('✅ env file created successfully at:', filePath);
   } catch (error) {
-    console.error("❌ Failed to create env file:", filePath, error);
+    console.error('❌ Failed to create env file:', filePath, error);
     throw error;
   }
 }
 
-export const createProjectEnvFile = async (config: RuntimeConfig) => {
-  const oracleMatrixHomeServerUrl = config.getOrThrow(
-    "oracleMatrixHomeServerUrl",
-  );
-  const network = config.getOrThrow("network") as NETWORK;
-  const regResult = config.getOrThrow("registerUserResult");
+export const createProjectEnvFile = async (config: RuntimeConfig, userDid: string) => {
+  const oracleMatrixHomeServerUrl = config.getOrThrow('oracleMatrixHomeServerUrl');
+  const network = config.getOrThrow('network') as NETWORK;
+  const regResult = config.getOrThrow('registerUserResult');
 
   // Use matrix-js-sdk login to get a clean access token for the oracle.
   const freshMx = await mxLogin({
     homeServerUrl: oracleMatrixHomeServerUrl,
     username: regResult.matrixUserId,
     password: regResult.matrixPassword,
-    deviceName: "Oracle Service",
+    deviceName: 'Oracle Service',
   });
-  const projectPath = config.getOrThrow("projectPath");
-  const envDir = path.join(projectPath, "apps", "app");
+  const projectPath = config.getOrThrow('projectPath');
+  const envDir = path.join(projectPath, 'apps', 'app');
 
-  console.log("Creating env files in:", envDir);
+  console.log('Creating env files in:', envDir);
 
   if (!fs.existsSync(envDir)) {
-    console.log("Creating directory:", envDir);
+    console.log('Creating directory:', envDir);
     fs.mkdirSync(envDir, { recursive: true });
   }
 
-  const oracleName = (config.getValue("projectName") as string) ?? "";
+  const oracleName = (config.getValue('projectName') as string) ?? '';
+  const entityDid = config.getOrThrow('entityDid');
+
+  // Fetch or create the oracle's ED signing mnemonic, then create a Composio API key
+  let composioApiKey = '';
+  try {
+    console.log('🔑 Setting up Composio API key...');
+    const edMnemonic = await fetchOrCreateEdMnemonic({
+      matrixHomeServerUrl: oracleMatrixHomeServerUrl,
+      matrixAccessToken: regResult.matrixAccessToken,
+      matrixRoomId: regResult.matrixRoomId,
+      pin: regResult.pin,
+    });
+    const offlineSigner = await getSecpClient(regResult.mnemonic);
+    const signAndBroadcast: SignAndBroadcastFn = (msgs, memo) =>
+      signAndBroadcastWithMnemonic({
+        offlineSigner,
+        messages: [...msgs],
+        memo,
+        network,
+      });
+
+    composioApiKey = await createComposioApiKey({
+      userDid,
+      oracleDid: regResult.did,
+      address: regResult.address,
+      edMnemonic,
+      network,
+      label: oracleName,
+      signAndBroadcast,
+    });
+    console.log('✅ Composio API key created');
+    console.log(`💡 Manage your Composio API keys at ${COMPOSIO_BASE_URL}`);
+  } catch (err) {
+    console.warn(`⚠️  Could not create Composio API key (${(err as Error).message}). Set COMPOSIO_API_KEY manually.`);
+  }
 
   // Write main .env with full values for the current network
   const envContent = buildEnvContent(network, {
@@ -196,22 +236,23 @@ export const createProjectEnvFile = async (config: RuntimeConfig) => {
     matrixPin: regResult.pin,
     matrixRoomId: regResult.matrixRoomId,
     mnemonic: regResult.mnemonic,
-    entityDid: config.getOrThrow("entityDid"),
+    entityDid,
     oracleAddress: regResult.address,
     oracleDid: regResult.did,
+    composioApiKey,
   });
   // Write full values to network-specific file (e.g. .env.testnet)
   const networkFilename = `.env.${network}`;
   writeEnvFile(path.join(envDir, networkFilename), envContent);
 
   // Copy to .env (active config the app reads)
-  writeEnvFile(path.join(envDir, ".env"), envContent);
+  writeEnvFile(path.join(envDir, '.env'), envContent);
 
   // Write blank templates for other networks only if they don't already exist
   const allNetworks: { net: NETWORK; filename: string }[] = [
-    { net: "devnet", filename: ".env.devnet" },
-    { net: "testnet", filename: ".env.testnet" },
-    { net: "mainnet", filename: ".env.mainnet" },
+    { net: 'devnet', filename: '.env.devnet' },
+    { net: 'testnet', filename: '.env.testnet' },
+    { net: 'mainnet', filename: '.env.mainnet' },
   ];
 
   for (const { net, filename } of allNetworks) {

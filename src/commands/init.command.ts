@@ -4,11 +4,11 @@ import path from 'path';
 import simpleGit from 'simple-git';
 import { Command } from '.';
 import { CLIResult } from '../types';
+import { parseCliFlags } from '../utils/cli-flags';
 import { createProjectEnvFile } from '../utils/create-project-env-file';
 import { RuntimeConfig } from '../utils/runtime-config';
 import { Wallet } from '../utils/wallet';
 import { CreateEntityCommand } from './create-entity-command';
-import { parseCliFlags } from '../utils/cli-flags';
 
 export class InitCommand implements Command {
   name = 'init';
@@ -178,7 +178,7 @@ export class InitCommand implements Command {
         throw new Error(result.error ?? 'Entity creation failed');
       }
 
-      await createProjectEnvFile(this.config);
+      await createProjectEnvFile(this.config, this.wallet.did ?? '');
 
       // Show success message with next steps
       p.log.success(
@@ -222,7 +222,7 @@ export class InitCommand implements Command {
           return { success: false, data: 'Project creation cancelled' };
         }
 
-        repo = await this.selectRepo() as string;
+        repo = (await this.selectRepo()) as string;
       }
 
       // Store in config so create-entity and env-file can use them

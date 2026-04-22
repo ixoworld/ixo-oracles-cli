@@ -32,6 +32,9 @@ importers:
       '@ixo/signx-sdk':
         specifier: ^1.2.0
         version: 1.2.0
+      '@ixo/ucan':
+        specifier: ^1.2.2
+        version: 1.2.2(@cosmjs/crypto@0.34.0)(@cosmjs/encoding@0.34.0)(typescript@5.9.2)
       '@matrix-org/matrix-sdk-crypto-wasm':
         specifier: ^15.1.0
         version: 15.1.0
@@ -545,6 +548,21 @@ packages:
     resolution: {integrity: sha512-93zYdMES/c1D69yZiKDBj0V24vqNzB/koF26KPaagAfd3P/4gUlh3Dys5ogAK+Exi9QyzlD8x/08Zt7wIKcDcA==}
     deprecated: Use @eslint/object-schema instead
 
+  '@ipld/car@5.4.3':
+    resolution: {integrity: sha512-+6QHy+9sLov1K28PmazHyqEmD5oDeMWa3mwxst8rt5OsP7CmEexwYDOflGSjPDOUWgHQ4WabQnBSZfXKvZ0DUw==}
+    engines: {node: '>=16.0.0', npm: '>=7.0.0'}
+
+  '@ipld/dag-cbor@9.2.6':
+    resolution: {integrity: sha512-vZGJ84Em2jCVAS7td5gc08YTVN8/s4bTQxg4pU77PAXDAR/yLYOthOvkCu01fdl1lrZwz47RdUterxdkrs3p5A==}
+    engines: {node: '>=16.0.0', npm: '>=7.0.0'}
+
+  '@ipld/dag-json@10.2.7':
+    resolution: {integrity: sha512-G+pXbOV6JpNUQrB+4H+0apnE85M9V0JjSjc7Mm2DdKbC6Qn8so9UYIGnJps+ZRMAvGUieO2iCZbAFLeWE2snvA==}
+    engines: {node: '>=16.0.0', npm: '>=7.0.0'}
+
+  '@ipld/dag-ucan@3.4.5':
+    resolution: {integrity: sha512-wiWhH0Ju7WgnumsarHCYtlo+1NRy+WIsXyAB7g2sDqVsKCyEJiLLmjeZzKqNv+qMxLnUS8bQ287cPiQ//s/oJQ==}
+
   '@istanbuljs/load-nyc-config@1.1.0':
     resolution: {integrity: sha512-VjeHSlIzpv/NyD3N0YuHfXOPDIixcA1q2ZV98wsMqcYlPmv2n3Yb2lYP9XMElnaFVXg5A7YLTeLu6V84uQDjmQ==}
     engines: {node: '>=8'}
@@ -561,6 +579,18 @@ packages:
 
   '@ixo/signx-sdk@1.2.0':
     resolution: {integrity: sha512-is6bd8mGY+nF+kz4PTqemeD1zSIkGsVzkcx9SMf3CIeEYEjYt3dYdix8oLGpKWSXkry43y03xEP0y7H6dgG2uQ==}
+
+  '@ixo/ucan@1.2.2':
+    resolution: {integrity: sha512-ifVz7k6VCZD564OFaV4nTtMveBWgbJSNbYmuIo1my5cYVonG3UC494fgsW8md02POts8nwgBWdHk2MfWUXMhvw==}
+    peerDependencies:
+      '@cosmjs/crypto': '>=0.32.0'
+      '@cosmjs/encoding': '>=0.32.0'
+      typescript: '>=5.0.0'
+    peerDependenciesMeta:
+      '@cosmjs/crypto':
+        optional: true
+      '@cosmjs/encoding':
+        optional: true
 
   '@jest/console@29.7.0':
     resolution: {integrity: sha512-5Ni4CU7XHQi32IJ398EEP4RrB8eV09sXP2ROqD4bksHrnTree52PsxvX8tpL8LvTZ3pFzXyPbNQReSN41CAhOg==}
@@ -658,6 +688,9 @@ packages:
   '@noble/curves@1.9.6':
     resolution: {integrity: sha512-GIKz/j99FRthB8icyJQA51E8Uk5hXmdyThjgQXRKiv9h0zeRlzSCLIzFw6K1LotZ3XuB7yzlf76qk7uBmTdFqA==}
     engines: {node: ^14.21.3 || >=16}
+
+  '@noble/ed25519@1.7.5':
+    resolution: {integrity: sha512-xuS0nwRMQBvSxDa7UxMb61xTiH3MxTgUfhyPUALVIe0FlOAz4sjELwyDRyUvqeEYfRSG9qNjFIycqLZppg4RSA==}
 
   '@noble/hashes@1.8.0':
     resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
@@ -826,6 +859,27 @@ packages:
   '@typescript-eslint/visitor-keys@8.39.0':
     resolution: {integrity: sha512-ldgiJ+VAhQCfIjeOgu8Kj5nSxds0ktPOSO9p4+0VDH2R2pLvQraaM5Oen2d7NxzMCm+Sn/vJT+mv2H5u6b/3fA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@ucanto/client@9.0.2':
+    resolution: {integrity: sha512-XbG8rw/fc1hPSFKDQ/z1NpIuc4Lm79J4NWbP+dedvDnb5LmOBMHE8bjjEPD4xGO2eh6fWQSZ4YTYk5wjkLz+3Q==}
+
+  '@ucanto/core@10.4.6':
+    resolution: {integrity: sha512-K3aRsbolL3Mas1P+7Ba+kpCvEVlBJf93V4OZ23FOZRBnbodD+x/ygOEXWL8OYcZpBwYiPeYWMAJPZpIzjNIEoQ==}
+
+  '@ucanto/interface@11.0.1':
+    resolution: {integrity: sha512-d0yoPFXdbb3EyM3sBom5VVcVyz58HT+57qi/ywSY1dbZAm4c7GZss0lpfcI5OXQREzGCzJYAg1e7pFwqbATnmQ==}
+
+  '@ucanto/principal@9.0.3':
+    resolution: {integrity: sha512-MFLvckOpQA46VSeLWyB7xCysL+ub5vnbCEtHbWhNE3qkzeo14v4wSThd60odPhxj83QXrzbveiebp0gcaEvXJg==}
+
+  '@ucanto/server@11.0.3':
+    resolution: {integrity: sha512-NiiUHYnyM4UPSWKquHbi1n3a5paAl8fQ0K8ankfaME1p18JyTGcbC8SOEUOecewqBpET5jHXPe/4DDt0M9Hi9A==}
+
+  '@ucanto/transport@9.2.1':
+    resolution: {integrity: sha512-/Dhr+2vjpGO5GTKsSl8XcPQFtFdZvIA9Yk/yzzY9DHFsdI+tXrUjLWYwXcidx8EIdx5Xd9oitF4wodIZuiW8GQ==}
+
+  '@ucanto/validator@10.0.1':
+    resolution: {integrity: sha512-J1/2NAfvs55CxDEuHKMTjoLgoVrFqBbZqErYwL7TDx8Pu2V9sv7rc2wZS5dRxcM1VCEzHXY3SWeLOJuH8VgKrw==}
 
   '@ungap/structured-clone@1.3.0':
     resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
@@ -1000,6 +1054,10 @@ packages:
 
   caniuse-lite@1.0.30001731:
     resolution: {integrity: sha512-lDdp2/wrOmTRWuoB5DpfNkC0rJDU8DqRa6nYL6HK6sytw70QMopt/NIc/9SM7ylItlBWfACXk0tEn37UWM/+mg==}
+
+  cborg@5.1.0:
+    resolution: {integrity: sha512-OwailRORD5pIyxaLKKVdGHQ2OXWmYW7YsjDXnl64cIwWdQiyXRffVFsL34JR5c+BEeeSOHADM3cy/QNERH1SUw==}
+    hasBin: true
 
   chalk@4.1.2:
     resolution: {integrity: sha512-oKnbhFyRIXpUuez8iBMmyEa4nbj4IOQyuhc/wy9kY7/WVPcwIO9VA668Pu8RkO7+0G76SLROeyw9CpQ061i4mA==}
@@ -1874,6 +1932,9 @@ packages:
   once@1.4.0:
     resolution: {integrity: sha512-lNaJgI+2Q5URQBkccEKHTQOPaXdUxnZZElQTZY0MFUAuaEqe1E+Nyvgdz/aIyNi6Z9MzO5dv1H8n58/GELp3+w==}
 
+  one-webcrypto@1.0.3:
+    resolution: {integrity: sha512-fu9ywBVBPx0gS9K0etIROTiCkvI5S1TDjFsYFb3rC1ewFxeOqsbzq7aIMBHsYfrTHBcGXJaONXXjTl8B01cW1Q==}
+
   onetime@5.1.2:
     resolution: {integrity: sha512-kbpaSSGJTWdAY5KPVeMOKXSrPtr8C8C7wodJbcsd51jRnmD+GZu8Y0VoU6Dm5Z4vWr0Ig/1NKuWRKf7j5aaYSg==}
     engines: {node: '>=6'}
@@ -2260,6 +2321,9 @@ packages:
   v8-to-istanbul@9.3.0:
     resolution: {integrity: sha512-kiGUalWN+rgBJ/1OHZsBtU4rXZOfj/7rKQxULKlIzwzQSvMJUUNgPwJEEh7gU6xEVxC0ahoOBvN2YI8GH6FNgA==}
     engines: {node: '>=10.12.0'}
+
+  varint@6.0.0:
+    resolution: {integrity: sha512-cXEIW6cfr15lFv563k4GuVuW/fiwjknytD37jIOLSdSWuOI6WnO/oKwmP2FQTU2l01LP8/M5TSAJpzUaGe3uWg==}
 
   walker@1.0.8:
     resolution: {integrity: sha512-ts/8E8l5b7kY0vlWLewOkDXMmPdLcVV4GmOQLyxuSswIJsweeFZtAsMF7k1Nszz+TYBQrlYRmzOnr398y1JemQ==}
@@ -2830,6 +2894,29 @@ snapshots:
 
   '@humanwhocodes/object-schema@2.0.3': {}
 
+  '@ipld/car@5.4.3':
+    dependencies:
+      '@ipld/dag-cbor': 9.2.6
+      cborg: 5.1.0
+      multiformats: 13.3.7
+      varint: 6.0.0
+
+  '@ipld/dag-cbor@9.2.6':
+    dependencies:
+      cborg: 5.1.0
+      multiformats: 13.3.7
+
+  '@ipld/dag-json@10.2.7':
+    dependencies:
+      cborg: 5.1.0
+      multiformats: 13.3.7
+
+  '@ipld/dag-ucan@3.4.5':
+    dependencies:
+      '@ipld/dag-cbor': 9.2.6
+      '@ipld/dag-json': 10.2.7
+      multiformats: 13.3.7
+
   '@istanbuljs/load-nyc-config@1.1.0':
     dependencies:
       camelcase: 5.3.1
@@ -2877,6 +2964,20 @@ snapshots:
       axios: 1.3.4
     transitivePeerDependencies:
       - debug
+
+  '@ixo/ucan@1.2.2(@cosmjs/crypto@0.34.0)(@cosmjs/encoding@0.34.0)(typescript@5.9.2)':
+    dependencies:
+      '@ucanto/client': 9.0.2
+      '@ucanto/core': 10.4.6
+      '@ucanto/interface': 11.0.1
+      '@ucanto/principal': 9.0.3
+      '@ucanto/server': 11.0.3
+      '@ucanto/transport': 9.2.1
+      '@ucanto/validator': 10.0.1
+      typescript: 5.9.2
+    optionalDependencies:
+      '@cosmjs/crypto': 0.34.0
+      '@cosmjs/encoding': 0.34.0
 
   '@jest/console@29.7.0':
     dependencies:
@@ -3069,6 +3170,8 @@ snapshots:
   '@noble/curves@1.9.6':
     dependencies:
       '@noble/hashes': 1.8.0
+
+  '@noble/ed25519@1.7.5': {}
 
   '@noble/hashes@1.8.0': {}
 
@@ -3271,6 +3374,54 @@ snapshots:
     dependencies:
       '@typescript-eslint/types': 8.39.0
       eslint-visitor-keys: 4.2.1
+
+  '@ucanto/client@9.0.2':
+    dependencies:
+      '@ucanto/core': 10.4.6
+      '@ucanto/interface': 11.0.1
+
+  '@ucanto/core@10.4.6':
+    dependencies:
+      '@ipld/car': 5.4.3
+      '@ipld/dag-cbor': 9.2.6
+      '@ipld/dag-ucan': 3.4.5
+      '@ucanto/interface': 11.0.1
+      multiformats: 13.3.7
+
+  '@ucanto/interface@11.0.1':
+    dependencies:
+      '@ipld/dag-ucan': 3.4.5
+      multiformats: 13.3.7
+
+  '@ucanto/principal@9.0.3':
+    dependencies:
+      '@ipld/dag-ucan': 3.4.5
+      '@noble/curves': 1.9.6
+      '@noble/ed25519': 1.7.5
+      '@noble/hashes': 1.8.0
+      '@ucanto/interface': 11.0.1
+      multiformats: 13.3.7
+      one-webcrypto: 1.0.3
+
+  '@ucanto/server@11.0.3':
+    dependencies:
+      '@ucanto/core': 10.4.6
+      '@ucanto/interface': 11.0.1
+      '@ucanto/principal': 9.0.3
+      '@ucanto/validator': 10.0.1
+
+  '@ucanto/transport@9.2.1':
+    dependencies:
+      '@ucanto/core': 10.4.6
+      '@ucanto/interface': 11.0.1
+
+  '@ucanto/validator@10.0.1':
+    dependencies:
+      '@ipld/car': 5.4.3
+      '@ipld/dag-cbor': 9.2.6
+      '@ucanto/core': 10.4.6
+      '@ucanto/interface': 11.0.1
+      multiformats: 13.3.7
 
   '@ungap/structured-clone@1.3.0': {}
 
@@ -3482,6 +3633,8 @@ snapshots:
   camelcase@6.3.0: {}
 
   caniuse-lite@1.0.30001731: {}
+
+  cborg@5.1.0: {}
 
   chalk@4.1.2:
     dependencies:
@@ -4576,6 +4729,8 @@ snapshots:
     dependencies:
       wrappy: 1.0.2
 
+  one-webcrypto@1.0.3: {}
+
   onetime@5.1.2:
     dependencies:
       mimic-fn: 2.1.0
@@ -4942,6 +5097,8 @@ snapshots:
       '@jridgewell/trace-mapping': 0.3.29
       '@types/istanbul-lib-coverage': 2.0.6
       convert-source-map: 2.0.0
+
+  varint@6.0.0: {}
 
   walker@1.0.8:
     dependencies:
