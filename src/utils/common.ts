@@ -110,6 +110,20 @@ export const checkIsEntityDid = (value: string | undefined) => {
   return undefined;
 };
 
+export const checkIsIidDid = (value: string | undefined) => {
+  const schema = z
+    .string()
+    .regex(
+      /^did:ixo:(entity:[a-f0-9]{32}|ixo1[a-z0-9]{38,58})$/,
+      "Invalid DID. Expected an entity DID (did:ixo:entity:<hex>) or an account DID (did:ixo:ixo1...)",
+    );
+  const result = schema.safeParse(value);
+  if (!result.success) {
+    return result.error.message;
+  }
+  return undefined;
+};
+
 export const checkRequiredURL = (
   value: string | undefined,
   message = "This url is required or a valid URL",

@@ -2,7 +2,7 @@ import * as p from '@clack/prompts';
 import { NETWORK } from '@ixo/signx-sdk/types/types/transact';
 import { Command } from '.';
 import { CLIResult } from '../types';
-import { checkIsEntityDid, selectNetwork } from '../utils/common';
+import { checkIsEntityDid, checkIsIidDid, selectNetwork } from '../utils/common';
 import { CreateEntity } from '../utils/entity';
 import { RuntimeConfig } from '../utils/runtime-config';
 import { Wallet } from '../utils/wallet';
@@ -51,7 +51,7 @@ export class UpdateEntityCommand implements Command {
           const did = await p.text({
             message: 'What is the DID of the controller you want to add?',
             validate(value) {
-              return checkIsEntityDid(value);
+              return checkIsIidDid(value);
             },
           });
           if (p.isCancel(did)) {
